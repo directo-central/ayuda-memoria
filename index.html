@@ -134,7 +134,18 @@ section{display:flex;flex-direction:column;gap:16px}
 .up .when{font-size:10.5px;color:var(--ink-4)}
 .up .fresh{font-size:9.5px;color:var(--green);background:var(--green-dim);padding:2px 7px;border-radius:3px}
 .up h3{font-weight:700;font-size:1.05rem;margin:0;line-height:1.35;letter-spacing:-.004em}
-.up p{margin:0;color:var(--ink-2);font-size:.94rem}
+.up p{margin:0;color:var(--ink-2);font-size:.94rem;white-space:pre-wrap}
+.pager{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;padding-top:4px}
+.pager button{
+  min-width:38px;height:38px;padding:0 11px;border:1px solid var(--line);border-radius:3px;
+  font-size:.85rem;font-weight:500;color:var(--ink-3);cursor:pointer;
+  font-feature-settings:"tnum";transition:.15s ease;
+}
+.pager button:hover:not(:disabled){border-color:var(--line-2);color:var(--ink)}
+.pager button[aria-current="true"]{background:var(--amber);border-color:var(--amber);color:#1A1206;font-weight:700}
+.pager button:disabled{opacity:.32;cursor:default}
+.pager .pts{color:var(--ink-4);padding:0 2px;font-size:.85rem}
+.pager .info{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4);margin-left:6px}
 .shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr));gap:8px;margin-top:2px}
 .shot{display:block;width:100%;padding:0;border:1px solid var(--line);cursor:zoom-in;border-radius:3px;overflow:hidden;background:var(--surface-2);transition:border-color .18s ease}
 .shot:hover{border-color:var(--amber-line)}
@@ -317,6 +328,7 @@ footer{position:relative;z-index:1;max-width:var(--max);margin:0 auto;padding:22
     <div class="sec-hd"><h2>Actualizaciones</h2><div class="rule"></div><span class="n" id="c-up"></span></div>
     <div class="callout hide" id="demo-note"><b>No se pudo leer la hoja.</b> Estás viendo ejemplos. Revisa que la hoja siga compartida como “cualquiera con el link” y que la fila tenga algo en la columna <b>titulo</b>.</div>
     <div class="feed" id="feed"></div>
+    <div class="pager hide" id="pager" role="navigation" aria-label="Páginas de actualizaciones"></div>
   </section>
 
   <section id="s-tools">
@@ -624,54 +636,119 @@ function imgURL(raw, ancho){
 }
 
 /* ── actualizaciones ─────────────────────────────────────────── */
-function pintarUpdates(list, esDemo){
-  const feed=$("#feed"); feed.textContent="";
-  $("#demo-note").classList.toggle("hide", !esDemo);
+const POR_PAGINA = 5;
+let UPDS = [];     // todas las actualizaciones, sin paginar
+let PAG  = 1;
 
-  if(!list.length){
-    $("#c-up").textContent = "sin publicaciones";
+function tarjetaUpdate(u, esUltima){
+  const card=el("article","up");
+
+  const head=el("div","up-top");
+  const num=el("span","num"); num.textContent="#"+u.n;
+  const when=el("span","when"); when.textContent=fdate(u.fecha);
+  head.append(num,when);
+  if(esUltima){ const f=el("span","fresh"); f.textContent="Última"; head.append(f); }
+
+  const h=el("h3"); h.textContent=u.titulo;
+  card.append(head,h);
+  if(u.detalle){ const p=el("p"); p.textContent=u.detalle; card.append(p); }
+
+  const fotos=(u.imagen||"").split(",").map(x=>x.trim()).filter(Boolean);
+  if(fotos.length){
+    const gal=el("div","shots");
+    fotos.slice(0,6).forEach(f=>{
+      const a=el("button","shot"); a.type="button";
+      a.setAttribute("aria-label","Ver imagen en grande");
+      const img=el("img");
+      img.src=imgURL(f,900); img.alt=u.titulo; img.loading="lazy"; img.decoding="async";
+      img.addEventListener("error",()=>{
+        a.classList.add("shot-fail");
+        a.textContent="No se pudo cargar la imagen";
+      });
+      a.addEventListener("click",()=>verImagen(f,u.titulo));
+      a.append(img); gal.append(a);
+    });
+    card.append(gal);
+  }
+  return card;
+}
+
+function dibujarPager(paginas, total){
+  const pg=$("#pager"); pg.textContent="";
+
+  const boton=(txt,destino,activo,inactivo)=>{
+    const b=el("button"); b.type="button"; b.textContent=txt;
+    if(activo) b.setAttribute("aria-current","true");
+    if(inactivo) b.disabled=true;
+    else b.addEventListener("click",()=>{ PAG=destino; filtrar(); $("#s-up").scrollIntoView({block:"start"}); });
+    return b;
+  };
+
+  pg.append(boton("‹", PAG-1, false, PAG===1));
+
+  // ventana de números: siempre primera, última y las cercanas a la actual
+  const nums=[];
+  for(let i=1;i<=paginas;i++){
+    if(i===1 || i===paginas || Math.abs(i-PAG)<=1) nums.push(i);
+    else if(nums[nums.length-1]!=="…") nums.push("…");
+  }
+  nums.forEach(n=>{
+    if(n==="…"){ const s2=el("span","pts"); s2.textContent="…"; pg.append(s2); }
+    else pg.append(boton(String(n), n, n===PAG, false));
+  });
+
+  pg.append(boton("›", PAG+1, false, PAG===paginas));
+
+  const info=el("span","info"); info.textContent=total+" en total";
+  pg.append(info);
+}
+
+/* Devuelve cuántas actualizaciones coinciden con la búsqueda.
+   Al buscar se muestran TODAS las coincidencias, sin paginar. */
+function dibujarFeed(words){
+  const feed=$("#feed"); feed.textContent="";
+  const pg=$("#pager");
+
+  if(!UPDS.length){
+    pg.classList.add("hide");
+    $("#c-up").textContent="sin publicaciones";
     const e=el("div","callout");
     const b=el("b"); b.textContent="Todavía no hay actualizaciones.";
     e.append(b, document.createTextNode(" La primera que escribas en la hoja aparecerá aquí arriba."));
     feed.append(e);
-    return;
+    return 0;
   }
 
-  const top = Math.max.apply(null, list.map(u=>Number(u.n)||0));
-  list.sort((a,b)=>(Number(b.n)||0)-(Number(a.n)||0)).forEach(u=>{
-    const card=el("article","up");
-    card.dataset.k = fold([u.n,u.titulo,u.detalle].join(" "));
+  const top = Math.max.apply(null, UPDS.map(u=>Number(u.n)||0));
+  const hay = words.length ? UPDS.filter(u=>words.every(w=>u.__k.includes(w))) : UPDS;
 
-    const head=el("div","up-top");
-    const num=el("span","num"); num.textContent="#"+u.n;
-    const when=el("span","when"); when.textContent=fdate(u.fecha);
-    head.append(num,when);
-    if(Number(u.n)===top){ const f=el("span","fresh"); f.textContent="Última"; head.append(f); }
+  let mostrar;
+  if(words.length){
+    mostrar = hay;                       // búsqueda: todo, sin paginar
+    pg.classList.add("hide");
+  }else{
+    const paginas = Math.max(1, Math.ceil(hay.length/POR_PAGINA));
+    if(PAG > paginas) PAG = paginas;
+    if(PAG < 1) PAG = 1;
+    mostrar = hay.slice((PAG-1)*POR_PAGINA, PAG*POR_PAGINA);
+    pg.classList.toggle("hide", paginas<=1);
+    if(paginas>1) dibujarPager(paginas, hay.length);
+  }
 
-    const h=el("h3"); h.textContent=u.titulo;
-    card.append(head,h);
-    if(u.detalle){ const p=el("p"); p.textContent=u.detalle; card.append(p); }
+  mostrar.forEach(u=>feed.append(tarjetaUpdate(u, Number(u.n)===top)));
 
-    const fotos=(u.imagen||"").split(",").map(x=>x.trim()).filter(Boolean);
-    if(fotos.length){
-      const gal=el("div","shots");
-      fotos.slice(0,6).forEach(f=>{
-        const a=el("button","shot"); a.type="button";
-        a.setAttribute("aria-label","Ver imagen en grande");
-        const img=el("img");
-        img.src=imgURL(f,900); img.alt=u.titulo; img.loading="lazy"; img.decoding="async";
-        img.addEventListener("error",()=>{
-          a.classList.add("shot-fail");
-          a.textContent="No se pudo cargar la imagen";
-        });
-        a.addEventListener("click",()=>verImagen(f,u.titulo));
-        a.append(img); gal.append(a);
-      });
-      card.append(gal);
-    }
-    feed.append(card);
-  });
-  $("#c-up").textContent = list.length + (list.length===1 ? " publicada" : " publicadas");
+  $("#c-up").textContent = words.length
+    ? hay.length + (hay.length===1?" coincide":" coinciden")
+    : UPDS.length + (UPDS.length===1?" publicada":" publicadas");
+
+  return hay.length;
+}
+
+function pintarUpdates(list, esDemo){
+  $("#demo-note").classList.toggle("hide", !esDemo);
+  UPDS = list.slice().sort((a,b)=>(Number(b.n)||0)-(Number(a.n)||0));
+  UPDS.forEach(u=>{ u.__k = fold([u.n,u.titulo,u.detalle].join(" ")); });
+  PAG = 1;
 }
 
 /* Carga vía <script>: las etiquetas script no pasan por CORS, así que
@@ -1167,10 +1244,7 @@ function filtrar(){
     });
     g.classList.toggle("hide", vivos===0);
   });
-  $("#feed").querySelectorAll(".up").forEach(n=>{
-    const show = !words.length || words.every(w=>n.dataset.k.includes(w));
-    n.classList.toggle("hide",!show); if(show) vu++;
-  });
+  vu = dibujarFeed(words);
 
   $("#s-tools").classList.toggle("hide", vt===0);
   $("#s-up").classList.toggle("hide", vu===0 && words.length>0);
