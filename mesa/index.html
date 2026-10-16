@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mesa de Respuestas CC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: barra superior con contador de costo · pestañas · área de trabajo en dos columnas (editor | burbuja WhatsApp) */
+:root{
+  --bg:#F5F4EF; --surface:#FFFFFF; --ink:#16233A; --muted:#5C677A; --line:#DEDBD1;
+  --amber:#E8A317; --amber-ink:#5A3B00; --amber-soft:#FBEFD2;
+  --chat:#E6EFE4; --bubble:#D9FDD3; --bubble-ink:#111B21;
+  --good:#2E7D4F; --warn:#B26A00; --bad:#B3261E; --good-soft:#E3F2E8; --warn-soft:#FFF1D6; --bad-soft:#FBE4E2;
+  --f-display:'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --f-body:'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+  --f-mono:'IBM Plex Mono', ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10161F; --surface:#18212D; --ink:#E9EDF3; --muted:#9AA6B6; --line:#2C3746;
+  --amber:#F0B437; --amber-ink:#2A1C00; --amber-soft:#3A2D10;
+  --chat:#0B141A; --bubble:#005C4B; --bubble-ink:#E9EDEF;
+  --good:#6FCB94; --warn:#F2B455; --bad:#F28B82; --good-soft:#173324; --warn-soft:#3A2C12; --bad-soft:#3B1D1B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10161F; --surface:#18212D; --ink:#E9EDF3; --muted:#9AA6B6; --line:#2C3746;
+  --amber:#F0B437; --amber-ink:#2A1C00; --amber-soft:#3A2D10;
+  --chat:#0B141A; --bubble:#005C4B; --bubble-ink:#E9EDEF;
+  --good:#6FCB94; --warn:#F2B455; --bad:#F28B82; --good-soft:#173324; --warn-soft:#3A2C12; --bad-soft:#3B1D1B; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:20px 48px}
+header{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;border-bottom:2px solid var(--ink);padding-bottom:14px}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(28px,4vw,40px);line-height:1.05;margin:0;letter-spacing:-.5px;text-wrap:balance}
+.sub{color:var(--muted);margin:6px 0 0;max-width:60ch}
+.meter{display:flex;gap:10px;align-items:center;background:var(--amber);color:var(--amber-ink);padding:8px 14px;border-radius:999px;font-weight:700}
+.meter span{font-family:var(--f-mono);font-size:14px}
+nav{display:flex;flex-wrap:wrap;gap:6px;margin:18px 0}
+nav button{font:600 15px var(--f-body);border:1.5px solid var(--line);background:var(--surface);color:var(--ink);padding:9px 16px;border-radius:999px;cursor:pointer}
+nav button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+h2{font-family:var(--f-display);font-weight:600;font-size:22px;margin:0 0 4px}
+.hint{color:var(--muted);font-size:14px;margin:0 0 14px}
+.trk{grid-column:1/-1;background:var(--bg);border:2px solid var(--amber);border-radius:12px;padding:4px 14px 12px;margin:4px 0 6px}
+.trk[hidden]{display:none}
+.trk label{color:var(--ink);font-size:14px}
+.trk-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.trk-base{font:14px var(--f-mono,monospace);color:var(--muted);overflow-wrap:anywhere}
+.trk input{width:150px;font-size:20px;font-weight:700;letter-spacing:1px;border:2px solid var(--amber)}
+.trk input[aria-invalid=true]{border-color:var(--bad)}
+.trk-btn{display:inline-block;background:var(--ink);color:var(--bg);border:1.5px solid var(--ink);border-radius:999px;padding:8px 16px;font:600 15px var(--f-body);text-decoration:none;cursor:pointer}
+.trk-btn.alt{background:transparent;color:var(--ink);border-color:var(--line)}
+.trk-btn[aria-disabled=true]{opacity:.4;pointer-events:none}
+.trk-msg{font-size:13px;color:var(--muted);margin:6px 0 0}
+.trk-msg.bad{color:var(--bad);font-weight:600}
+.trk-rec{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.trk-rec button{border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:3px 10px;font:13px var(--f-mono,monospace);cursor:pointer}
+.trk-rec span{font-size:12px;color:var(--muted);align-self:center}
+.llist{margin-top:8px;max-height:640px;overflow:auto;padding-right:4px}
+.lgrp{font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+.litem{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:8px 10px;margin-bottom:6px;font:600 14px var(--f-body);cursor:pointer}
+.litem[aria-pressed="true"]{border-color:var(--amber);background:var(--amber-soft)}
+.litem .pill{flex:none}
+.pill.good{background:var(--good-soft);color:var(--good)} .pill.warn{background:var(--warn-soft);color:var(--warn)}
+.lchk{display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-size:15px;color:var(--ink);margin-top:12px}
+.lchk[hidden]{display:none}
+.lchk input{width:auto}
+.lantes{margin-top:14px;font-size:14px;color:var(--muted)}
+.lantes summary{cursor:pointer;font-weight:600;color:var(--ink)}
+.lantes p{white-space:pre-wrap;border-left:3px solid var(--line);padding-left:10px;margin:8px 0 0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.chip{border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:7px 11px;font:600 14px var(--f-body);cursor:pointer;text-align:left}
+.chip[aria-pressed="true"]{border-color:var(--amber);background:var(--amber-soft)}
+.chip small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+label{display:block;font-size:13px;font-weight:600;letter-spacing:.3px;color:var(--muted);text-transform:uppercase;margin:10px 0 4px}
+input,select,textarea{width:100%;font:16px var(--f-body);color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:8px;padding:8px 10px}
+textarea{min-height:200px;resize:vertical}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}
+@media (max-width:520px){.fields{grid-template-columns:1fr}}
+.full{grid-column:1/-1}
+.phone{background:var(--chat);border-radius:14px;padding:18px;min-height:220px;display:flex;flex-direction:column;gap:8px}
+.bubble{align-self:flex-end;max-width:92%;background:var(--bubble);color:var(--bubble-ink);border-radius:10px 10px 2px 10px;padding:9px 12px;white-space:pre-wrap;word-wrap:break-word;font-size:15px;box-shadow:0 1px 1px rgba(0,0,0,.12)}
+.bubble.x{opacity:.45;text-decoration:line-through}
+.bubble .t{display:block;text-align:right;font-size:11px;opacity:.6;margin-top:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+.btn{font:700 15px var(--f-body);border:0;border-radius:10px;padding:10px 16px;cursor:pointer;background:var(--ink);color:var(--bg)}
+.btn.alt{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.ok{color:var(--good);font-weight:600;font-size:14px}
+.stat{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.flag{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border-radius:8px;font-size:14px;margin-top:8px}
+.flag.bad{background:var(--bad-soft)} .flag.warn{background:var(--warn-soft)} .flag.good{background:var(--good-soft)}
+.flag b{min-width:64px;font-size:12px;letter-spacing:.4px;text-transform:uppercase}
+.flag.bad b{color:var(--bad)} .flag.warn b{color:var(--warn)} .flag.good b{color:var(--good)}
+.big{font-family:var(--f-display);font-weight:800;font-size:44px;line-height:1}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+.kpi p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:760px;font-variant-numeric:tabular-nums}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:right;font-size:14px}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);cursor:pointer;user-select:none;position:sticky;top:0;background:var(--surface)}
+th:first-child,td:first-child{text-align:left}
+td.name{font-weight:700;text-transform:capitalize}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}
+.pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.good{background:var(--good-soft);color:var(--good)}
+.bar{height:6px;border-radius:3px;background:var(--line);margin-top:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--amber)}
+.coach{margin-top:16px}
+.coach li{margin:6px 0}
+.check{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:22px}
+@media (max-width:760px){.check{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.check div{border:1.5px dashed var(--line);border-radius:12px;padding:12px;font-size:14px}
+.check strong{display:block;font-family:var(--f-display);font-size:16px;margin-bottom:2px}
+.drop{border:2px dashed var(--amber);background:var(--amber-soft);border-radius:12px;padding:14px;display:flex;gap:14px;align-items:center;cursor:pointer;margin-bottom:6px}
+.drop:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.drop img{max-width:120px;max-height:70px;border-radius:6px;border:1px solid var(--line)}
+.drop strong{display:block;font-size:15px}
+.drop span{font-size:13px;color:var(--muted)}
+.ocrst{font-size:14px;font-weight:600;margin:6px 0 0}
+.clr{margin-top:8px;font:600 14px var(--f-body);color:var(--ink);background:transparent;border:1.5px solid var(--line);border-radius:999px;padding:6px 14px;cursor:pointer}
+.clr:hover{border-color:var(--amber)}
+.must{border:2px solid var(--amber);background:var(--amber-soft);border-radius:12px;padding:2px 12px 12px;margin-top:10px}
+.must label{color:var(--ink);font-size:14px}
+.must input{font-size:22px;font-weight:700;max-width:160px;border:2px solid var(--amber);background:var(--bg)}
+.must input[aria-invalid=true]{border-color:var(--bad)}
+.must select{font-size:16px;font-weight:700;border:2px solid var(--amber);background:var(--bg)}
+.must small{display:block;font-size:14px;color:var(--muted);margin-top:6px}
+.must small.bad{color:var(--bad);font-weight:600}
+.mwarn{color:var(--bad);font-weight:600;font-size:14px}
+.ocrst.wait{color:var(--warn)} .ocrst.ok{color:var(--good)} .ocrst.err{color:var(--bad)}
+footer{color:var(--muted);font-size:13px;margin-top:28px}
+@media (prefers-reduced-motion:no-preference){.bubble{transition:opacity .2s}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <div>
+    <h1>Mesa de Respuestas</h1>
+    <p class="sub">Customer Care Taxi · Arma cada respuesta en un solo mensaje de WhatsApp. Cada burbuja enviada cuesta USD 0.033.</p>
+  </div>
+  <div class="meter" aria-live="polite">Ahorro en esta sesión <span id="saved">0 msj · USD 0.00</span></div>
+</header>
+
+<nav role="tablist" aria-label="Secciones">
+  <button role="tab" id="t-macros" aria-selected="true" aria-controls="p-macros">Macros de un envío</button>
+  <button role="tab" id="t-lib" aria-selected="false" aria-controls="p-lib">Textos del equipo</button>
+  <button role="tab" id="t-rev" aria-selected="false" aria-controls="p-rev">Revisor antes de enviar</button>
+</nav>
+
+<!-- MACROS -->
+<section id="p-macros" role="tabpanel" aria-labelledby="t-macros">
+  <div class="trk full" id="trk" hidden>
+    <label for="trk-num">🔗 Ver tracking del servicio</label>
+    <div class="trk-row">
+      <span class="trk-base">portal.directoapp.pe/intranet/compartir-servicio/</span>
+      <input id="trk-num" inputmode="numeric" maxlength="7" placeholder="N.º de servicio" autocomplete="off">
+      <a id="trk-open" class="trk-btn" target="_blank" rel="noopener" aria-disabled="true">Abrir tracking ↗</a>
+      <button type="button" id="trk-copy" class="trk-btn alt">Copiar link</button>
+      <span class="ok" id="trk-ok" hidden>Copiado</span>
+    </div>
+    <p class="trk-msg" id="trk-msg">Paso 1: escribe los 7 dígitos y abre el tracking. Paso 2: pega abajo la captura del módulo o del tracking.</p>
+  </div>
+  <div class="grid">
+    <div class="panel">
+      <h2>Elige la situación</h2>
+      <p class="hint">Completa los datos y copia. El mensaje sale completo: saludo, información y cierre en una sola burbuja.</p>
+      <div class="chips" id="chips"></div>
+      <div class="fields" id="fields"></div>
+    </div>
+    <div class="panel">
+      <h2>Así lo recibe el cliente</h2>
+      <p class="hint" id="mhint"></p>
+      <div class="phone" id="mphone"></div>
+      <div class="row">
+        <button class="btn" id="mcopy">Copiar mensaje</button>
+        <span class="stat" id="mstat"></span>
+        <span class="ok" id="mok" hidden>Copiado</span>
+        <span class="mwarn" id="mwarn" role="alert" hidden></span>
+      </div>
+      <textarea id="mfallback" aria-label="Texto para copiar" hidden></textarea>
+    </div>
+  </div>
+</section>
+
+<!-- TEXTOS DEL EQUIPO -->
+<section id="p-lib" role="tabpanel" aria-labelledby="t-lib" hidden>
+  <div class="grid">
+    <div class="panel">
+      <h2>Textos del equipo, revisados</h2>
+      <p class="hint">Los textos que usan hoy los agentes, corregidos: un solo trato (tú), sin burbujas de espera, la información clave en negrita y una pregunta clara al final.</p>
+      <label for="lq">Buscar texto</label>
+      <input id="lq" placeholder="Ej.: factura, prepago, Backus" autocomplete="off">
+      <div class="llist" id="llist"></div>
+    </div>
+    <div class="panel">
+      <h2 id="ltitle"></h2>
+      <p class="hint" id="lnote"></p>
+      <div class="fields" id="lfields"></div>
+      <label class="lchk" hidden><input type="checkbox" id="lend" checked> Agregar despedida al final</label>
+      <div class="phone" id="lphone" style="margin-top:12px"></div>
+      <div class="row">
+        <button class="btn" id="lcopy">Copiar mensaje</button>
+        <button class="btn alt" id="lgo" hidden>Ir al macro</button>
+        <span class="ok" id="lok" hidden>Copiado</span>
+        <span class="mwarn" id="lwarn" role="alert" hidden></span>
+      </div>
+      <details class="lantes"><summary>Ver texto anterior</summary><p id="lantes"></p></details>
+    </div>
+  </div>
+</section>
+
+<!-- REVISOR -->
+<section id="p-rev" role="tabpanel" aria-labelledby="t-rev" hidden>
+  <div class="grid">
+    <div class="panel">
+      <h2>Pega lo que ibas a enviar</h2>
+      <p class="hint">Escribe cada burbuja en una línea distinta. El revisor quita las burbujas de espera y une el resto en un solo mensaje.</p>
+      <label for="rin">Mensajes del agente</label>
+      <textarea id="rin"></textarea>
+      <div class="row">
+        <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-size:15px;color:var(--ink);margin:0"><input type="checkbox" id="radj" style="width:auto"> Voy a enviar una imagen o PDF</label>
+      </div>
+      <div id="rflags"></div>
+    </div>
+    <div class="panel">
+      <h2>Versión en un envío</h2>
+      <p class="hint" id="rhint"></p>
+      <div class="phone" id="rphone"></div>
+      <div class="row">
+        <button class="btn" id="rcopy">Copiar versión optimizada</button>
+        <button class="btn alt" id="rex">Cargar ejemplo</button>
+        <span class="ok" id="rok" hidden>Copiado</span>
+      </div>
+    </div>
+  </div>
+  <div class="check" aria-label="Checklist antes de enviar">
+    <div><strong>¿Lo puedo juntar?</strong>Con el mensaje anterior o el siguiente.</div>
+    <div><strong>¿Informa algo?</strong>"Un momento" o "estoy revisando" no van solos.</div>
+    <div><strong>¿Respondí todo?</strong>Todo lo que preguntó, en un solo envío.</div>
+    <div><strong>¿El archivo lleva texto?</strong>La descripción va con la imagen o el PDF.</div>
+  </div>
+</section>
+
+
+
+<footer>Tarifa de referencia: USD 0.033 por mensaje entregado (Perú), 1,000 gratis por número al mes.</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script>
+const TARIFA=0.033;
+let saved=0;
+function addSaved(n){saved+=n;document.getElementById('saved').textContent=saved+' msj · USD '+(saved*TARIFA).toFixed(2);}
+function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s;}
+function wa(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*([^*\n]+)\*/g,'<b>$1</b>');}
+function hhmm(){const d=new Date();return d.toTimeString().slice(0,5);}
+async function copyText(txt,okEl,fb){try{await navigator.clipboard.writeText(txt);okEl.hidden=false;setTimeout(()=>okEl.hidden=true,1500);return true;}catch(e){if(fb){fb.hidden=false;fb.value=txt;fb.select();}return false;}}
+
+/* Tabs */
+const tabs=[...document.querySelectorAll('[role=tab]')];
+function showTab(id){tabs.forEach(t=>{const on=t.id===id;t.setAttribute('aria-selected',on);document.getElementById(t.getAttribute('aria-controls')).hidden=!on;});try{localStorage.setItem('mesa-tab',id)}catch(e){}}
+tabs.forEach(t=>t.addEventListener('click',()=>showTab(t.id)));
+try{const s=localStorage.getItem('mesa-tab');if(s&&document.getElementById(s))showTab(s)}catch(e){}
+
+/* Macros */
+const CIERRE='¡Gracias por contactar al Centro de Soporte Directo! 🚘💙';
+const LINK='https://portal.directoapp.pe/intranet/compartir-servicio/';
+const SAMPLE_RES=`Codigo Servicio: 5900001
+Fecha de tu viaje: Hoy, lunes 12 de octubre - 08:15 (mañana)
+Desde: AV. EJEMPLO 123 - MIRAFLORES
+Hacia (Destino 1): AEROPUERTO JORGE CHÁVEZ - CALLAO
+Categoría: Lite
+Tipo pago: Empresa
+
+Otros datos de tu viaje
+Cliente: EMPRESA DEMO
+Usuario: Pérez Rojas Ana
+Pasajero: Pérez Rojas Ana
+Teléfono: 900000000
+Observación:
+
+Tarifa sin costos extras: S/55.00`;
+const COLORES=['azul','blanco','negro','gris','plata','plateado','rojo','verde','amarillo','guinda','marrón','marron','beige','dorado','naranja','celeste','morado','vino','plomo','perla'];
+const ROTULOS=/^(estado|aceptado|asignado|conductor|nombre|tel[eé]fono|telefono|placa|mot|anulaci[oó]n|h|urbana|interurbano|detalles|servicio|nro|n[º°o]|m[oó]vil)$/i;
+function titulo(x){return x.toLowerCase().replace(/(^|\s)(\p{L})/gu,(m,a,b)=>a+b.toUpperCase());}
+function parseCond(t){t=t||'';const r={};
+  const cod=t.match(/(?:servicio|nro)[^\d]{0,12}(\d{6,8})/i)||t.match(/\b(\d{7})\b/); if(cod)r.codigo=cod[1];
+  const pl=t.match(/\b([A-Z]{3}-?\d{3}|[A-Z]\d[A-Z]-?\d{3}|[A-Z]{2}\d-?\d{3})\b/i); if(pl)r.placa=pl[1].toUpperCase();
+  const mv=t.match(/conductor\s*:?\s*(\d{2,5})\b/i)||[...t.matchAll(/\b(\d{3,5})\b/g)].find(m=>m[1]!==r.codigo&&!(r.placa||'').includes(m[1])); if(mv)r.movil=mv[1];
+  const cl=t.match(new RegExp('\\b('+COLORES.join('|')+')\\b','i')); if(cl)r.color=titulo(cl[1]);
+  const nl=t.match(/nombre\s*:?\s*([^\n\d:]{3,60})/i);
+  let nombre=nl?nl[1]:t.replace(/https?:\S+/g,' ').split(/[\s,;|]+/).filter(w=>/^\p{L}[\p{L}'.-]*$/u.test(w)&&!ROTULOS.test(w)&&!COLORES.includes(w.toLowerCase())&&!/^[A-Z]{3}\d{3}$/i.test(w)).join(' ');
+  nombre=nombre.replace(/\b(placa|tel[eé]fono|telefono|color)\b.*$/i,'').trim(); if(nombre.split(' ').length>=2)r.nombre=titulo(nombre);
+  return r;}
+function buildReserva(t){
+  t=(t||'').replace(/\r/g,'');
+  const cod=(t.match(/C[oó]digo\s*(?:de\s*)?Servicio\s*:\s*(\d+)/i)||[])[1];
+  if(!cod) return 'No encontré el "Codigo Servicio". Pega el resumen completo que arma el sistema.';
+  // Mantiene la estructura del resumen del sistema; quita lo que ya arma la herramienta.
+  const skip=/^(✅|🔗|https?:\/\/|Si alg[uú]n dato|¡?Gracias por contactar)/i;
+  const L=t.split('\n').map(x=>x.trim()).filter(x=>x&&!skip.test(x));
+  const G={cod:[],fecha:[],ruta:[],tipo:[],otros:[],tarifa:[]};
+  L.forEach(x=>{
+    if(/^C[oó]digo\s*(de\s*)?Servicio/i.test(x))G.cod.push(x);
+    else if(/^Fecha de tu viaje/i.test(x))G.fecha.push(x);
+    else if(/^(Desde|Hacia)\b/i.test(x))G.ruta.push(x);
+    else if(/^(Categor[ií]a|Tipo\s*(de\s*)?pago)\b/i.test(x))G.tipo.push(x);
+    else if(/^Tarifa\b/i.test(x))G.tarifa.push(x);
+    else G.otros.push(x);
+  });
+  // UX: valores clave en negrita, sin líneas vacías ni repetidas, sin ", PERÚ".
+  const val=x=>{const i=x.indexOf(':');return i<0?'':x.slice(i+1).trim();};
+  const bold=x=>{const i=x.indexOf(':');return i<0||!x.slice(i+1).trim()?x:`${x.slice(0,i+1)} *${x.slice(i+1).trim()}*`;};
+  G.cod=G.cod.map(bold); G.fecha=G.fecha.map(bold); G.tarifa=G.tarifa.map(bold);
+  G.ruta=G.ruta.map(x=>x.replace(/,\s*PER[UÚ](?=\s|,|$)/gi,'').replace(/^Desde\s*:\s*/i,'📍 Desde: ').replace(/^Hacia\s*\(\s*Destino\s*(\d+)\s*\)\s*:\s*/i,'🏁 Destino $1: ').replace(/^Hacia\s*:\s*/i,'🏁 Destino: '));
+  const usu=val(G.otros.find(x=>/^Usuario\b/i.test(x))||''), pas=val(G.otros.find(x=>/^Pasajero\b/i.test(x))||'');
+  G.otros=G.otros.filter(x=>!(/:/.test(x)&&!val(x)&&!/^Otros datos/i.test(x))).filter(x=>!(usu&&pas&&usu===pas&&/^Usuario\b/i.test(x)));
+  if(G.otros.length===1&&/^Otros datos/i.test(G.otros[0]))G.otros=[];
+  if(G.otros.length&&/^Otros datos/i.test(G.otros[0]))G.otros[0]='*Otros datos de tu viaje*';
+  const B=['✅ *Reserva confirmada*'];
+  [G.cod,G.fecha,G.ruta,G.tipo,G.otros,G.tarifa].forEach(g=>{if(g.length)B.push(g.join('\n'));});
+  B.push(`🔗 *Sigue tu servicio aquí* 30 min antes de tu reserva:\n${LINK}${cod}`);
+  B.push(`Si algún dato no es correcto, responde este mensaje.\n${CIERRE}`);
+  return B.join('\n\n');
+}
+function parseRes(t){t=t||'';const r={};const g=re=>{const m=t.match(re);return m?m[1].trim():'';};
+ r.codigo=g(/C[oó]digo\s*(?:de\s*)?Servicio\s*:?\s*(\d{7})/i)||g(/(?<!\d)(\d{7})(?!\d)/);
+ const pas=g(/Pasajero\s*:[ \t]*([^\n]+)/i)||g(/Usuario\s*:[ \t]*([^\n]+)/i);if(pas){const ws=pas.replace(/[^\p{L}\s'-]/gu,' ').trim().split(/\s+/);const w=ws.length>=3?ws[2]:ws.length===2?ws[1]:ws[0];if(w)r.nombre=titulo(w);}
+ const fe=g(/Fecha de tu viaje\s*:\s*([^\n]+)/i);if(fe){const h=(fe.match(/(\d{1,2}:\d{2})/)||[])[1];let d=fe.replace(/\s*-?\s*\d{1,2}:\d{2}.*$/,'').trim().replace(/,\s*$/,'');d=d.charAt(0).toLowerCase()+d.slice(1);let hh='';if(h){let[H,M]=h.split(':').map(Number);const pm=H>=12;H=H%12||12;hh=`${H}:${String(M).padStart(2,'0')} ${pm?'p. m.':'a. m.'}`;}r.fecha=(d?d:'')+(hh?(d?', a las ':'las ')+hh:'');}
+ const dm=fe&&fe.match(/(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+\d{1,2}\s+de\s+\p{L}+/iu);if(dm){const hm=(r.fecha||'').match(/a las (.+)$/);r.dia=dm[0].toLowerCase()+(hm?' a las '+hm[1]:'');}
+ const cut=x=>x.split(',')[0].replace(/\s+-\s+[A-ZÁÉÍÓÚÑ ]+$/,'').trim();const de=g(/Desde\s*:\s*([^\n]+)/i),ha=g(/Hacia\s*(?:\(Destino\s*\d+\))?\s*:\s*([^\n]+)/i);if(de&&ha)r.ruta=`${cut(de)} → ${cut(ha)}`;
+ return r;}
+function minErr(m){m=(m||'').trim();if(!m)return 'Escribe los minutos que muestra el tracking.';if(!/^\d{1,3}$/.test(m))return 'Solo números enteros, por ejemplo 8.';if(+m>90)return 'Revisa el tiempo: más de 90 minutos.';return null;}
+function minLine(m){m=(m||'').trim();if(minErr(m))return '⏱️ Llega en aprox. [escribe los minutos]';const n=+m;return n===0?'⏱️ Tu conductor ya está llegando a tu punto de recojo':`⏱️ Llega en aprox. *${n} ${n===1?'minuto':'minutos'}*`;}
+const MACROS=[
+ {id:'reserva',t:'Confirmar reserva',s:'Pega el resumen del sistema',before:4,note:'Copia el resumen que arma el sistema y pégalo tal cual: el mensaje mantiene la estructura del resumen y agrega el link de seguimiento con el código. Incluye el teléfono del pasajero.',f:[['resumen','Resumen del servicio (pegar)',SAMPLE_RES,'area']],
+  b:v=>buildReserva(v.resumen)},
+ {id:'conductor',t:'Datos del conductor',s:'Pega la captura del módulo',before:2,ocr:true,note:'Pega la captura del módulo de reserva y la herramienta llena las casillas. También puedes pegar la captura del tracking (con la barra del link visible): llena el N.º de servicio, nombre, vehículo, placa, color y minutos.',onRaw:t=>parseCond(t),f:[['raw','O pega / escribe los datos en texto','5900001 1234 Juan Pérez Ríos ABC123 Blanco','area'],['codigo','N.º de servicio · automático',''],['movil','Conductor (móvil) · automático',''],['nombre','Nombre · automático',''],['placa','Placa · automático',''],['color','Color · automático',''],['vehiculo','Vehículo · automático (tracking)',''],['estado','Estado del conductor','asignado',['asignado','en camino','ya llegó al punto de recojo']],['min','⏱️ Llega en (min) · del tracking o a mano','','min']],check:v=>{const c=vals.conductor||{};if(!(c.placa||'').trim()&&!(c.nombre||'').trim())return 'Faltan los datos del conductor: pega la captura del módulo o del tracking.';return v.estado==='ya llegó al punto de recojo'?null:minErr(v.min);},
+  b:v=>{const p=parseCond((vals.conductor&&vals.conductor.raw)||'');const g=k=>(vals.conductor&&vals.conductor[k]&&vals.conductor[k].trim())||p[k]||'';const est=v.estado||'asignado';const L=[est==='en camino'?'Hola 👋 Tu conductor ya está en camino:':est==='asignado'?'Hola 👋 Tu conductor ya está asignado:':'Hola 👋 Tu conductor ya llegó a tu punto de recojo:'];const d=[];if(g('nombre'))d.push(`🧑‍✈️ Conductor: ${g('nombre')}`);if(g('movil'))d.push(`🚖 Móvil: ${g('movil')}`);if(g('vehiculo'))d.push(`🚘 Vehículo: ${g('vehiculo')}`);if(g('placa'))d.push(`🚗 Placa: *${g('placa')}*`+(g('color')?` · Color: *${g('color')}*`:''));if(est!=='ya llegó al punto de recojo')d.push(minLine(v.min));if(d.length)L.push(d.join('\n'));if(g('codigo'))L.push(`🔗 Ubicación en tiempo real:\n${LINK}${g('codigo')}`);L.push(CIERRE);return L.join('\n\n');}},
+ {id:'demora',t:'Demora o reasignación',s:'Pega el resumen del servicio',before:3,note:'Pega el resumen del servicio que arma el sistema: se llenan el N.º de servicio, el nombre y la hora. Tú eliges el motivo y los minutos de demora.',onRaw:t=>parseRes(t),
+  f:[['raw','Resumen del servicio (pegar)','Pega aquí el resumen del sistema (Codigo Servicio, Fecha de tu viaje, Pasajero…)','area'],['codigo','N.º de servicio · automático',''],['nombre','Nombre del pasajero · automático',''],['fecha','Fecha y hora · automático',''],['motivo','✍️ Motivo · manual','reasignación',['reasignación','falla de la unidad']],['min','⏱️ Demora (min) · manual','30']],hi:['motivo','min'],full:['fecha'],
+  check:v=>{const c=vals.demora||{};if(!/^\d{7}$/.test((c.codigo||'').trim()))return 'Falta el N.º de servicio: pega el resumen del servicio.';if(!/^\d{1,3}$/.test((c.min||'30').trim()))return 'Los minutos de demora deben ser un número.';return null;},
+  b:v=>{const c=vals.demora||{};const g=k=>(c[k]||'').trim();const cod=g('codigo')||'[N.º de servicio]';const n=g('nombre');const f=g('fecha');
+   const mot=v.motivo==='reasignación'?'Ya estamos asignándote otro conductor':'Tuvimos un inconveniente con la unidad asignada y estamos ubicando otro conductor cerca de tu punto de recojo';
+   return `${n?`Hola, ${n} 👋`:'Hola 👋'} Te escribimos por tu servicio *${cod}*${f?` de ${f}`:''}${f.endsWith('.')?'':'.'}\n\nEstamos presentando una demora 😔 ${mot}.\n\nEs probable que lleguemos hasta *${v.min} minutos* después de la hora de tu reserva. Si llegamos antes, el conductor se comunicará contigo 🚖\n\n¿Podrías esperarnos, por favor? 🙏`;}},
+ {id:'datos',t:'Pedir datos de reserva',s:'Hoy: una pregunta por burbuja',before:4,f:[['empresa','Empresa (opcional)','']],
+  b:v=>`Con gusto te ayudo con tu reserva${v.empresa?' para *'+v.empresa+'*':''} 😊 Envíame estos datos en un solo mensaje:\n\n🗓️ Fecha y hora:\n📍 Lugar de recojo:\n📍 Destino:\n💳 Método de pago:\n📄 Boleta o factura (si es factura, RUC y correo):\n👥 N.º de pasajeros:\n🧳 N.º de maletas:`},
+ {id:'prepago',t:'Viaje prepago (garantía)',s:'Explica la garantía de S/ 15',before:1,note:'Explica la garantía en 4 puntos y termina pidiendo un SÍ para enviar el link de pago Niubiz.',f:[],
+  b:v=>`Te cuento cómo funcionan los viajes prepago 💳\n\n• Se cobra un adicional de *S/ 15* como garantía.\n• La garantía cubre montos extra del viaje: peajes, estacionamiento o tiempo de espera.\n• Si no se usa, pedimos la devolución en un máximo de *72 horas hábiles*. Según tu banco, puede tardar hasta *30 días calendario* en verse en tu tarjeta.\n• El pago se hace por un link seguro de *Niubiz* que te enviamos por aquí.\n\n¿Estás de acuerdo? Responde *SÍ* y te envío el link de pago.`},
+ {id:'linkpago',t:'Link de pago + pedir captura',s:'Hoy: link y "envíanos el print" aparte',before:2,hi:['link'],full:['link'],note:'Pega el link de Niubiz: el pedido de la captura del pago va en el mismo mensaje.',
+  f:[['link','🔗 Link de pago Niubiz · pegar','https://…']],
+  check:v=>/^https?:\/\/\S+$/.test(((vals.linkpago||{}).link||'').trim())?null:'Pega el link de pago de Niubiz.',
+  b:v=>{const l=((vals.linkpago||{}).link||'').trim()||'[pega el link de pago]';return `Aquí tienes tu link de pago seguro (Niubiz) 👇\n${l}\n\nCuando completes el pago, envíanos por aquí la captura del comprobante y agendamos tu servicio ✅`;}},
+ {id:'comp-pedir',t:'Pedir datos de comprobante',s:'Hoy: tipo, código y RUC por separado',before:3,f:[['tipo','Tipo','factura',['factura','boleta']]],
+  b:v=>v.tipo==='factura'?`Para emitir tu *factura*, envíame en un solo mensaje:\n\n• RUC:\n• Correo para enviarla:\n• N.º de servicio (7 dígitos):`:`Para emitir tu *boleta*, envíanos en un solo mensaje:\n\n• Código de servicio (7 dígitos)\n• DNI (opcional)\n\nTe la enviamos por este medio en breve.`},
+ {id:'comp-envio',t:'Enviar comprobante corregido',s:'Pega el resumen del servicio',before:2,onRaw:t=>parseRes(t),hi:['tipo','caso'],note:'El comprobante normal lo envía el sistema automáticamente. Usa este texto cuando corriges una emisión incorrecta o reenvías una copia: pega el resumen del servicio, elige el tipo y escribe el texto como descripción del PDF, en el mismo envío.',
+  f:[['raw','Resumen del servicio (pegar)','Pega aquí el resumen del sistema (Codigo Servicio, Fecha de tu viaje, Desde, Hacia…)','area'],['codigo','N.º de servicio · automático',''],['nombre','Nombre del pasajero · automático',''],['dia','Fecha y hora del viaje · automático',''],['tipo','🧾 Tipo · manual','Factura',['Factura','Boleta']],['caso','📌 Caso · manual','corrección',['corrección','reenvío de copia']]],
+  check:v=>/^\d{7}$/.test(((vals['comp-envio']||{}).codigo||'').trim())?null:'Falta el N.º de servicio: pega el resumen del servicio.',
+  b:v=>{const c=vals['comp-envio']||{};const g=k=>(c[k]||'').trim();const n=g('nombre'),d=g('dia');
+   const fem=v.tipo==='Factura'||v.tipo==='Boleta';const cod=g('codigo')||'[N.º de servicio]';const cuando=d?` del ${d}`:'';const pto=d.endsWith('.')?'':'.';const hi=n?`Hola, ${n} 👋 `:'Hola 👋 ';
+   return v.caso==='corrección'?`📎 ${hi}Te envío tu *${v.tipo}* ${fem?'corregida':'corregido'} del servicio *${cod}*${cuando}${pto}\n\nDisculpa el inconveniente con el comprobante anterior 🙏\n\n${CIERRE}`:`📎 ${hi}Te reenvío tu *${v.tipo}* del servicio *${cod}*${cuando}${pto}\n\n${CIERRE}`;}},
+ {id:'ticket',t:'Conductor: consulta registrada',s:'Hoy: 3+ burbujas',before:3,f:[['tema','Tema','tu liquidación de la semana'],['ticket','N.º de ticket','T-48211'],['plazo','Plazo de respuesta','48 horas hábiles']],
+  b:v=>`Compa, registramos tu consulta 👇\n\n📌 Tema: ${v.tema}\n🎫 Ticket: *${v.ticket}*\n⏱️ Respuesta en: ${v.plazo}\n\nTe respondemos por aquí; no necesitas escribir de nuevo. ¡Gracias! 🚖`},
+ {id:'cierre',t:'Respuesta + cierre',s:'Hoy: respuesta, "¿algo más?" y despedida aparte',before:3,f:[['resp','Tu respuesta','Listo, ya actualizamos la dirección de recojo de tu reserva.','area']],
+  b:v=>`${v.resp}\n\nSi necesitas algo más, escríbenos por aquí.\n${CIERRE}`},
+];
+let cur=MACROS[0]; const vals={};
+const chips=document.getElementById('chips');
+MACROS.forEach(m=>{const b=document.createElement('button');b.className='chip';b.innerHTML=`${m.t}<small>${m.s}</small>`;b.setAttribute('aria-pressed',m===cur);b.onclick=()=>{cur=m;[...chips.children].forEach((c,i)=>c.setAttribute('aria-pressed',MACROS[i]===m));renderFields();};chips.appendChild(b);});
+function renderFields(){const box=document.getElementById('fields');const TK=document.getElementById('trk');document.getElementById('p-macros').appendChild(TK);TK.hidden=true;box.innerHTML='';vals[cur.id]=vals[cur.id]||{};
+ if(cur.ocr){TK.hidden=false;box.appendChild(TK);}
+ if(cur.ocr){const z=document.createElement('div');z.className='full';z.innerHTML=`<label>Captura del módulo de reserva o del tracking</label><div class="drop" id="drop" tabindex="0" role="button" aria-describedby="ocrst"><img id="dropimg" alt="Captura pegada" hidden><div><strong>Pega aquí la captura del módulo o del tracking (Ctrl+V)</strong><span>Del tracking se lee todo: N.º de servicio (del link), nombre, vehículo, placa, color y minutos. También puedes arrastrarla, o haz clic para elegir el archivo. La imagen se lee en tu navegador y no se envía a ningún lado.</span></div></div><input type="file" id="dropfile" accept="image/*" hidden><p class="ocrst" id="ocrst" aria-live="polite"></p><button type="button" class="clr" id="clrcond">Nuevo servicio · limpiar casillas</button>`;box.appendChild(z);z.querySelector('#clrcond').onclick=()=>{vals.conductor={};renderFields();trkSet('',false);};
+  const d=z.querySelector('#drop'),fi=z.querySelector('#dropfile');d.onclick=()=>fi.click();d.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fi.click();}};
+  fi.onchange=()=>{if(fi.files[0])readShot(fi.files[0]);};d.ondragover=e=>{e.preventDefault();};d.ondrop=e=>{e.preventDefault();const f=[...e.dataTransfer.files].find(f=>f.type.startsWith('image/'));if(f)readShot(f);};}
+ cur.f.forEach(([k,lab,ph,opts])=>{const w=document.createElement('div');if(ph==='area'||opts==='area'||cur.f.length===1)w.className='full';
+  const id='f-'+cur.id+'-'+k;let el;
+  if(Array.isArray(opts)){el=document.createElement('select');opts.forEach(o=>{const op=document.createElement('option');op.textContent=o;el.appendChild(op)});}
+  else if(opts==='area'){el=document.createElement('textarea');el.style.minHeight=k==='resumen'?'300px':k==='raw'?'110px':'90px';}
+  else{el=document.createElement('input');if(opts==='min'){el.inputMode='numeric';el.autocomplete='off';w.className='must full';}}
+  el.id=id; if(!Array.isArray(opts)) el.placeholder=ph; el.value=vals[cur.id][k]??(Array.isArray(opts)?opts[0]:'');
+  el.oninput=()=>{vals[cur.id][k]=el.value;if(k==='min')vals[cur.id]._mt=1;if(k==='raw'&&cur.onRaw){const p=cur.onRaw(el.value);Object.entries(p).forEach(([kk,vv])=>{const inp=document.getElementById('f-'+cur.id+'-'+kk);if(inp){inp.value=vv||'';vals[cur.id][kk]=vv||'';}});}renderMsg();};
+  if(cur.full&&cur.full.includes(k))w.className='full';
+  if(cur.hi&&cur.hi.includes(k)){w.className='must';if(k==='min')el.inputMode='numeric';}
+  w.innerHTML=`<label for="${id}">${lab}</label>`;w.appendChild(el);if(opts==='min'){const h=document.createElement('small');h.id='minhint';el.setAttribute('aria-describedby','minhint');w.appendChild(h);}box.appendChild(w);});
+ renderMsg();}
+function renderMsg(){const v={};cur.f.forEach(([k,,ph,opts])=>{const x=vals[cur.id][k];v[k]=(x&&x.trim())?x.trim():(Array.isArray(opts)?(x||opts[0]):(ph||''));});
+ const txt=cur.b(v);const ph=document.getElementById('mphone');ph.innerHTML='';cur._err=cur.check?cur.check(v):null;document.getElementById('mwarn').hidden=true;
+ const mh=document.getElementById('minhint'),mi=document.getElementById('f-conductor-min');if(mh&&mi){const e=minErr(v.min),touched=!!(vals.conductor&&vals.conductor._mt);mh.textContent=e&&touched?e:'Mira el tiempo en el tracking del servicio, o pega aquí su captura y se llena solo.';mh.className=e&&touched?'bad':'';mi.setAttribute('aria-invalid',e&&touched?'true':'false');}
+ const b=document.createElement('div');b.className='bubble';b.innerHTML=wa(txt);const t=document.createElement('span');t.className='t';t.textContent=hhmm()+' ✓✓';b.appendChild(t);ph.appendChild(b);
+ document.getElementById('mhint').textContent=(cur.note?cur.note+' ':'')+(cur.before>1?`Antes: ~${cur.before} burbujas. Ahora: 1.`:'');
+ document.getElementById('mstat').textContent=`${txt.length} caracteres`+(cur.before>1?` · ahorra ${cur.before-1} msj`:'');
+ document.getElementById('mfallback').hidden=true; ph.dataset.txt=txt;}
+document.getElementById('mcopy').onclick=async()=>{if(cur._err){const mw=document.getElementById('mwarn');mw.textContent=cur._err;mw.hidden=false;if(cur.id==='conductor'){vals.conductor._mt=1;renderMsg();document.getElementById('mwarn').hidden=false;document.getElementById('mwarn').textContent='No se copió. '+cur._err;const mi=document.getElementById(/captura/.test(cur._err)?'drop':'f-conductor-min');if(mi)mi.focus();}return;}const ok=await copyText(document.getElementById('mphone').dataset.txt,document.getElementById('mok'),document.getElementById('mfallback'));addSaved(cur.before-1);};
+
+/* Lectura de la captura (OCR en el navegador) */
+let ocrW=null;
+async function getOcr(){if(ocrW)return ocrW;if(!window.Tesseract)throw new Error('lib');
+ ocrW=await Tesseract.createWorker('spa',1,{cacheMethod:'none'});return ocrW;}
+function prep(img,scale,box){const sx=box?box[0]*img.width:0,sy=box?box[1]*img.height:0,sw=box?(box[2]-box[0])*img.width:img.width,sh=box?(box[3]-box[1])*img.height:img.height;
+ const c=document.createElement('canvas');c.width=Math.round(sw*scale);c.height=Math.round(sh*scale);const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#ffffff';x.fillRect(0,0,c.width,c.height);x.imageSmoothingQuality='high';x.drawImage(img,sx,sy,sw,sh,0,0,c.width,c.height);
+ const d=x.getImageData(0,0,c.width,c.height),a=d.data;for(let i=0;i<a.length;i+=4){const r=a[i],g=a[i+1],b=a[i+2];const v=((b-r>70&&r<200)||(r+g+b<330))?0:255;a[i]=a[i+1]=a[i+2]=v;}x.putImageData(d,0,0);return c;}
+function gray(img,scale,th){const c=document.createElement('canvas');c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.imageSmoothingQuality='high';x.drawImage(img,0,0,c.width,c.height);const d=x.getImageData(0,0,c.width,c.height),a=d.data;for(let i=0;i<a.length;i+=4){const red=a[i]>150&&a[i+1]<110&&a[i+2]<110;const v=!red&&(a[i]*.3+a[i+1]*.59+a[i+2]*.11)<th?0:255;a[i]=a[i+1]=a[i+2]=v;}x.putImageData(d,0,0);return c;}
+function fromWords(words){const W=words.map(x=>({t:x.text.replace(/[|\[\]{}()]/g,'').trim(),x0:x.bbox.x0,x1:x.bbox.x1,y:(x.bbox.y0+x.bbox.y1)/2,h:Math.max(8,x.bbox.y1-x.bbox.y0),bb:x.bbox})).filter(x=>x.t);
+ const fx=t=>{t=t.toUpperCase().replace('-','');return t.length===6?t.slice(0,3)+t.slice(3).replace(/O/g,'0').replace(/S/g,'5').replace(/I/g,'1').replace(/B/g,'8').replace(/Z/g,'2'):t;};W.forEach(x=>{const f=fx(x.t);if(/^[A-Z0-9]{3}\d{3}$/.test(f)&&/[A-Z]/.test(f.slice(0,3)))x.t=f;});
+ const P=W.find(x=>/^[A-Z]{3}-?\d{3}$/i.test(x.t))||W.find(x=>/^[A-Z0-9]{3}-?\d{3}$/i.test(x.t)&&/[A-Z]/i.test(x.t));if(!P)return null;
+ const line=y=>W.filter(x=>Math.abs(x.y-y)<P.h*0.6&&x.x0>=P.x0-P.h*0.5&&x.x0<P.x0+P.h*25).sort((a,b)=>a.x0-b.x0).map(x=>x.t).join(' ').trim();
+ const ys=[];W.filter(x=>Math.abs(x.x0-P.x0)<P.h*1.2&&x.y<P.y&&P.y-x.y<P.h*8).sort((a,b)=>b.y-a.y).forEach(x=>{if(!ys.some(y=>Math.abs(y-x.y)<P.h*0.6))ys.push(x.y);});
+ const r={placa:P.t.toUpperCase(),_bb:P.bb};const col=line(P.y).replace(P.t,'').replace(/[^\p{L}\s]/gu,' ').trim().split(/\s+/)[0];if(col)r.color=col.charAt(0).toUpperCase()+col.slice(1).toLowerCase();
+ ys.map(line).forEach(v=>{if(/^\+?\d{9,}$/.test(v.replace(/\s/g,'')))return;if(!r.movil&&/^\d{2,5}$/.test(v)){r.movil=v;return;}if(!r.nombre&&/\p{L}{2,}.*\s+\p{L}{2,}/u.test(v)&&!/aceptad|asignad|estado/i.test(v))r.nombre=v;});
+ return r;}
+async function readShot(file){const st=document.getElementById('ocrst'),im=document.getElementById('dropimg');if(!st)return;
+ st.className='ocrst wait';st.textContent='Leyendo la captura… la primera vez puede tardar unos segundos.';
+ try{const url=URL.createObjectURL(file);if(im){im.src=url;im.hidden=false;}
+  const img=await createImageBitmap(file);const w=await getOcr();
+  await w.setParameters({tessedit_pageseg_mode:'11'});const sc=img.width<900?4:2;await w.setParameters({tessedit_pageseg_mode:'11',tessedit_char_whitelist:''});const c1=prep(img,sc);const r1=await w.recognize(c1);
+  const T=r1.data.text;const tm0=T.match(/llegar[aá]\s*en\s*([\dOo]{1,3})\s*m[il1]n/i)||(/en\s+camino|Origen/i.test(T)&&T.match(/(?<![\dA-Za-z])([\dO]{1,3})\s*m[il1]n\b/i));const tm=tm0&&[0,String(+tm0[1].replace(/[Oo]/g,'0'))];
+  if(tm){
+   const V=vals.conductor=vals.conductor||{};const has=k=>!!(V[k]&&V[k].trim());const setF=(k,v)=>{if(!v)return;V[k]=v;const e=document.getElementById('f-conductor-'+k);if(e)e.value=v;};
+   const dg=x=>x.replace(/O/g,'0').replace(/S/g,'5').replace(/I/g,'1').replace(/B/g,'8').replace(/Z/g,'2');
+   const PW=(r1.data.words||[]).find(x=>{const t=x.text.toUpperCase().replace(/[^A-Z0-9]/g,'');return t.length===6&&/[A-Z]/.test(t.slice(0,3))&&/^\d{3}$/.test(dg(t.slice(3)))&&(t.slice(3).match(/\d/g)||[]).length>=2;});
+   let pl='';if(PW){const t=PW.text.toUpperCase().replace(/[^A-Z0-9]/g,'');pl=t.slice(0,3)+dg(t.slice(3));
+    try{const bb=PW.bbox,pd=Math.round((bb.y1-bb.y0)*0.4);await w.setParameters({tessedit_pageseg_mode:'7',tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'});const rp=await w.recognize(c1,{rectangle:{left:Math.max(0,bb.x0-pd),top:Math.max(0,bb.y0-pd),width:bb.x1-bb.x0+2*pd,height:bb.y1-bb.y0+2*pd}});const q=rp.data.text.replace(/\s/g,'');if(/^[A-Z0-9]{3}\d{3}$/.test(q)&&/[A-Z]/.test(q.slice(0,3)))pl=q;await w.setParameters({tessedit_char_whitelist:''});}catch(e){}}
+   const mp=(V.placa||'').toUpperCase().replace(/[^A-Z0-9]/g,'');const norm=x=>x.replace(/O/g,'0');
+   if(pl&&mp&&norm(pl)!==norm(mp)){st.className='ocrst err';st.textContent=`Ojo: la placa del tracking (${pl}) no coincide con la de las casillas (${mp}). Si es otro servicio, toca «Nuevo servicio · limpiar casillas» y pega de nuevo. No cambié ningún dato.`;return;}
+   {const mn=document.getElementById('f-conductor-min');if(mn){mn.value=tm[1];mn.dispatchEvent(new Event('input'));}}
+   let cod=null;const G=gray(img,3,170);await w.setParameters({tessedit_pageseg_mode:'7',tessedit_char_whitelist:''});
+   try{const bh=Math.min(img.height,Math.max(40,Math.round(img.height*0.06))),bw=Math.round(img.width*0.75);const reads=[];
+    for(const th of [150,170,190]){const c=document.createElement('canvas');c.width=bw*3;c.height=bh*3;const x=c.getContext('2d',{willReadFrequently:true});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.imageSmoothingQuality='high';x.drawImage(img,0,0,bw,bh,0,0,c.width,c.height);const dd=x.getImageData(0,0,c.width,c.height),q=dd.data;for(let i=0;i<q.length;i+=4){const v=(q[i]*.3+q[i+1]*.59+q[i+2]*.11)<th?0:255;q[i]=q[i+1]=q[i+2]=v;}x.putImageData(dd,0,0);
+     const ru=await w.recognize(c);const t=ru.data.text.replace(/\s/g,'');if(!/compart|servic|intranet|directo/i.test(t))continue;const m=t.match(/(\d{7})(?!\d)/);if(m)reads.push(m[1]);}
+    if(reads.length){cod=[...Array(7)].map((_,i)=>{const n={};reads.forEach(r=>n[r[i]]=(n[r[i]]||0)+1);return Object.entries(n).sort((a,b)=>b[1]-a[1])[0][0];}).join('');}}catch(e){}
+   if(!cod){const m=T.replace(/\s/g,'').match(/servicio\/(\d{7})(?!\d)/i);if(m)cod=m[1];}
+   const nm=T.match(/(\p{L}{2,})\s+est\S{0,3}\s+en\s+camino/iu);const nombre=nm?nm[1].charAt(0).toUpperCase()+nm[1].slice(1).toLowerCase():'';
+   const COL=/^(BLANC[OA]|NEGR[OA]|GRIS|PLATA|PLATEAD[OA]|PLOM[OA]|ROJ[OA]|AZUL|VERDE|AMARILL[OA]|BEIGE|MARR[OÓ]N|GUINDA|NARANJA|DORAD[OA]|CELESTE|MORAD[OA]|BLANCO PERLA)$/i;
+   const lines=T.split('\n').map(x=>x.replace(/[^\p{L}\d\s-]/gu,' ').replace(/\s+/g,' ').trim()).filter(Boolean);
+   let veh='',color='';const WD=r1.data.words||[];const Ti=WD.find(x=>/^Tipo/i.test(x.text));
+   if(Ti){try{const k=3/sc,h=(Ti.bbox.y1-Ti.bbox.y0)*k;const Pw=WD.find(x=>x.bbox.x0>Ti.bbox.x1&&Math.abs(x.bbox.y0-Ti.bbox.y0)<h*3/k&&/^[A-Z0-9]{6}$/.test(x.text));const right=Pw?Pw.bbox.x0*k-h*0.5:Ti.bbox.x0*k+h*28;
+    const rv=await w.recognize(G,{rectangle:{left:Math.max(0,Math.round(Ti.bbox.x0*k-h*0.3)),top:Math.round(Ti.bbox.y1*k+h*0.15),width:Math.round(right-Ti.bbox.x0*k+h*0.3),height:Math.round(h*1.9)}});
+    const ln=rv.data.text.replace(/[^\p{L}\d\s-]/gu,' ').replace(/\s+/g,' ').trim();const m=ln.match(/^(.+?)\s*-\s*(\p{L}+(?:\s\p{L}+)?)$/u);if(m){veh=m[1];color=m[2];}else{const ws=ln.split(' ');const ci=ws.findIndex((x,q)=>q>0&&COL.test(x));if(ci>0){veh=ws.slice(0,ci).join(' ');color=ws[ci];}}}catch(e){}}
+   if(!color)for(const ln of lines){const ws=ln.replace(/-/g,' ').split(' ').filter(Boolean);const ci=ws.findIndex((x,k)=>k>0&&COL.test(x));if(ci>0&&ws.length<=7){color=ws[ci];veh=ws.slice(0,ci).join(' ');break;}}
+   if(!color){const ti=lines.findIndex(x=>/^Tipo/i.test(x));const ln=ti>=0?lines[ti+1]:'';const m=ln&&ln.match(/^(.+?)\s*-\s*(\p{L}+)$/u);if(m){veh=m[1];color=m[2];}}
+   const tc=x=>x.toLowerCase().replace(/(^|\s)\p{L}/gu,c=>c.toUpperCase());
+   if(/en\s+camino/i.test(T))setF('estado','en camino');if(cod&&!has('codigo'))setF('codigo',cod);if(pl&&!has('placa'))setF('placa',pl);if(color&&!has('color'))setF('color',tc(color));if(nombre&&!has('nombre'))setF('nombre',nombre);if(veh&&!has('vehiculo'))setF('vehiculo',tc(veh));
+   renderMsg();const leido=[cod&&('servicio '+(V.codigo||cod)),V.nombre,V.vehiculo,V.placa&&(V.placa+(V.color?' '+V.color:'')),tm[1]+' min'].filter(Boolean).join(' · ');
+   const falt=[!has('codigo')&&'N.º de servicio (no se ve la barra del link)',!has('placa')&&'placa',!has('nombre')&&'nombre'].filter(Boolean);
+   st.className=falt.length?'ocrst err':'ocrst ok';st.textContent=`Leído del tracking: ${leido}.`+(falt.length?' Falta: '+falt.join(', ')+'; escríbelo en su casilla.':' El N.º de móvil no sale en el tracking: escríbelo solo si quieres incluirlo.')+(V.placa&&/[O0]/.test(V.placa.slice(0,3))?' Verifica si la placa lleva letra O o número 0.':'');return;}
+  const d=fromWords(r1.data.words||[])||{};
+  if(d._bb){const b=d._bb,pd=Math.round((b.y1-b.y0)*0.4);try{await w.setParameters({tessedit_pageseg_mode:'7',tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'});
+   const rp=await w.recognize(c1,{rectangle:{left:Math.max(0,b.x0-pd),top:Math.max(0,b.y0-pd),width:b.x1-b.x0+2*pd,height:b.y1-b.y0+2*pd}});const pt=rp.data.text.replace(/\s/g,'');if(/^[A-Z0-9]{3}\d{3}$/.test(pt))d.placa=pt;}catch(e){}
+   await w.setParameters({tessedit_char_whitelist:''});}
+  let cod=null;const digRead=async(cv,ws)=>{const S=ws.find(x=>/servicio/i.test(x.text)&&ws.some(o=>o!==x&&/\d{5,}/.test(o.text)&&o.bbox.x0>x.bbox.x0&&Math.abs((o.bbox.y0+o.bbox.y1)-(x.bbox.y0+x.bbox.y1))<(x.bbox.y1-x.bbox.y0)*2));if(!S)return null;const h=S.bbox.y1-S.bbox.y0;await w.setParameters({tessedit_pageseg_mode:'7',tessedit_char_whitelist:'0123456789'});const rr=await w.recognize(cv,{rectangle:{left:S.bbox.x1+2,top:Math.max(0,Math.round(S.bbox.y0-h*0.7)),width:Math.round(h*9),height:Math.round(h*2.4)}});const m=rr.data.text.replace(/\D/g,'').match(/\d{7}/);return m?m[0]:null;};
+  try{cod=await digRead(c1,r1.data.words||[]);}catch(e){}
+  if(!cod)try{for(const bx of [[0,0,1,0.2],[0,0.04,0.42,0.18],[0,0,0.6,0.15]]){await w.setParameters({tessedit_pageseg_mode:'6',tessedit_char_whitelist:''});const c2=prep(img,sc,bx);const r2=await w.recognize(c2);const ws=r2.data.words||[];
+   const S=ws.find(x=>/servicio/i.test(x.text)&&ws.some(o=>o!==x&&/\d{5,}/.test(o.text)&&o.bbox.x0>x.bbox.x0&&Math.abs((o.bbox.y0+o.bbox.y1)-(x.bbox.y0+x.bbox.y1))<(x.bbox.y1-x.bbox.y0)*2));
+   if(S){const h=S.bbox.y1-S.bbox.y0;await w.setParameters({tessedit_pageseg_mode:'7',tessedit_char_whitelist:'0123456789'});const rr=await w.recognize(c2,{rectangle:{left:S.bbox.x1+2,top:Math.max(0,Math.round(S.bbox.y0-h*0.7)),width:Math.round(h*9),height:Math.round(h*2.4)}});const m=rr.data.text.replace(/\D/g,'').match(/\d{7}/);if(m){cod=m[0];break;}}
+   const m2=r2.data.text.match(/Servicio\D{0,10}(\d{7})(?!\d)/i);if(m2){cod=m2[1];break;}}}catch(e){}
+  try{await w.setParameters({tessedit_char_whitelist:''});}catch(e){}
+  if(!cod){const m=r1.data.text.match(/(?<!\d)(\d{7})(?!\d)/);if(m)cod=m[1];}
+  const txt=[cod&&('Nro Servicio '+cod),d.movil&&('Conductor '+d.movil),d.nombre&&('Nombre: '+d.nombre),d.placa&&('Placa: '+d.placa+(d.color?' '+d.color:''))].filter(Boolean).join('\n');
+  const raw=document.getElementById('f-conductor-raw');if(raw){raw.value=txt;raw.dispatchEvent(new Event('input'));}
+  const falt=[!cod&&'N.º de servicio',!d.movil&&'conductor',!d.nombre&&'nombre',!d.placa&&'placa'].filter(Boolean);
+  const oz=d.placa&&/[O0]/.test(d.placa.slice(0,3))?' Ojo con la placa: verifica si lleva letra O o número 0.':'';
+  if(!falt.length){st.className='ocrst ok';st.textContent='Listo. Revisa que los datos coincidan con el módulo y escribe los minutos del tracking (o pega su captura).'+oz;}
+  else if(falt.length===1&&!cod){st.className='ocrst ok';st.textContent='Listo. La captura no muestra el N.º de servicio: escríbelo en su casilla para armar el link.'+oz;}
+  else{st.className='ocrst err';st.textContent='No pude leer: '+falt.join(', ')+'.'+oz+' Complétalo en su casilla, o pega una captura más nítida o solo del recuadro "Detalles Servicio".';}
+  const mn=document.getElementById('f-conductor-min');if(mn&&!falt.length){mn.focus();mn.select();}
+ }catch(e){st.className='ocrst err';st.textContent='No se pudo leer la imagen en este navegador. Escribe o pega los datos en el cuadro de texto.';}}
+document.addEventListener('paste',e=>{const it=[...(e.clipboardData?.items||[])].find(i=>i.type.startsWith('image/'));if(!it)return;e.preventDefault();
+ if(cur.id!=='conductor'){showTab('t-macros');const i=MACROS.findIndex(m=>m.id==='conductor');chips.children[i].click();}
+ readShot(it.getAsFile());});
+/* Acceso directo al tracking */
+const trkN=document.getElementById('trk-num'),trkO=document.getElementById('trk-open'),trkM=document.getElementById('trk-msg');
+try{localStorage.removeItem('mesa_trk');}catch(e){}
+function trkSave(){}
+function trkSet(v,fromUser){v=(v||'').replace(/\D/g,'').slice(0,7);trkN.value=v;const ok=/^\d{7}$/.test(v);trkO.setAttribute('aria-disabled',ok?'false':'true');if(ok)trkO.href=LINK+v;else trkO.removeAttribute('href');
+ trkN.setAttribute('aria-invalid',v&&!ok?'true':'false');trkM.className=v&&!ok?'trk-msg bad':'trk-msg';trkM.textContent=v&&!ok?`Faltan dígitos: el N.º de servicio tiene 7 (llevas ${v.length}).`:ok?'Listo: abre el tracking, toma la captura y pégala abajo.':'Paso 1: escribe los 7 dígitos y abre el tracking. Paso 2: pega abajo la captura del módulo o del tracking.';
+ if(fromUser&&ok&&cur.id==='conductor'){vals.conductor=vals.conductor||{};if(vals.conductor.codigo!==v){vals.conductor.codigo=v;const e=document.getElementById('f-conductor-codigo');if(e)e.value=v;renderMsg();}}}
+trkN.oninput=()=>trkSet(trkN.value,true);
+trkN.onkeydown=e=>{if(e.key==='Enter'&&/^\d{7}$/.test(trkN.value)){trkSave(trkN.value);window.open(LINK+trkN.value,'_blank','noopener');}};
+trkO.onclick=()=>{if(/^\d{7}$/.test(trkN.value))trkSave(trkN.value);};
+document.getElementById('trk-copy').onclick=async()=>{if(!/^\d{7}$/.test(trkN.value)){trkSet(trkN.value||'0',false);trkN.focus();return;}trkSave(trkN.value);await copyText(LINK+trkN.value,document.getElementById('trk-ok'));};
+document.addEventListener('input',e=>{if(e.target&&e.target.id==='f-conductor-codigo'&&/^\d{7}$/.test(e.target.value.trim()))trkSet(e.target.value.trim(),false);});
+const _rm=renderMsg;renderMsg=function(){_rm();const c=vals.conductor&&vals.conductor.codigo;if(cur.id==='conductor'&&c&&/^\d{7}$/.test(c)&&c!==trkN.value)trkSet(c,false);};
+/* Textos del equipo (biblioteca revisada) */
+const hola=n=>n?`Hola, ${n} 👋 `:'Hola 👋 ';
+const LIB=[
+ {g:'Inicio',id:'saludo',t:'Saludo',tag:['Mejorado','good'],note:'Cereza ya envía un saludo automático al asignar el caso. Úsalo solo si el cliente escribió solo "hola"; si ya dijo qué necesita, responde directo sin saludar.',
+  f:[['agente','Tu nombre','July']],b:v=>`¡Hola! Soy ${v.agente}, de Directo 😊 ¿En qué te ayudo?`,
+  antes:'¡Hola xxxx, te saluda Julianny y te doy la bienvenida al WhatsApp de Directo💙! ¿Cómo puedo ayudarte?\n\n— o —\n\n¡Bienvenido a Directo, te saluda July¡\n\n¿En qué te puedo ayudar 🤓?'},
+ {g:'Inicio',id:'yaatendido',t:'Ya lo atendió otro compañero',tag:['Mejorado','good'],
+  f:[],b:v=>`Veo que uno de mis compañeros ya te ayudó con este caso 😊 ¿Necesitas algo más?`,
+  antes:'verifico que ya te facilitaron soporte.'},
+ {g:'Inicio',id:'pendiente',t:'Servicio aún sin conductor',tag:['Mejorado','good'],note:'Tranquiliza primero ("es normal") y luego explica el plazo.',
+  f:[['nombre','Nombre del cliente (opcional)',''],['codigo','N.º de servicio','5920534'],['hora','Hora del servicio','9:30 p.m.']],
+  b:v=>`${hola(v.nombre)}Tu servicio *${v.codigo}* de las ${v.hora} está registrado y aún no tiene conductor: es normal.\n\nEl conductor se asigna entre *20 y 30 minutos* antes de la hora del servicio. Si usas la app, ahí verás sus datos apenas se asigne 😊`,
+  antes:'QUIEREN DATOS DE CONDUCTOR PERO AÚN NO SE ASIGNA: XXXXX, he verificado y tu reserva está en curso en nuestro sistema, el conductor se asigna entre 30 y 20 minutos antes de la hora programada para tu viaje. Si utilizas la aplicación, podrás ver los datos del conductor en cuanto se asigne el taxi. En caso no estés usando la app o tengas alguna duda, no dudes en comunicarte con nosotros y con gusto te brindaremos la información que necesites.\n\n— o —\n\nHola  ! verifico que tu servicio    aún se encuentra pendiente de asignación de conductor, recuerda que las unidades son asignadas entre 20 a 30 minutos antes del servicio. 😄'},
+ {g:'Inicio',id:'espera',t:'Un momento / estoy revisando',tag:['Evitar si puedes','bad'],note:'Cada "un momento" es un mensaje cobrado y no le da información al cliente. Si vas a responder en menos de 2 minutos, no lo envíes: responde directo con la solución. Si va a tardar más, di qué haces y cuánto demora.',
+  f:[['accion','Qué estás haciendo','registrando tu solicitud',['registrando tu solicitud','revisando tu servicio','verificando lo que me pides']],['min','N.º de minutos','5']],
+  b:v=>`Gracias 🙌 Estoy ${v.accion} y en unos *${v.min} minutos* te respondo por aquí.`,
+  antes:'¡Hola, te saluda Julianny y te doy la bienvenida al WhatsApp de Directo💙! Permítame un momento, procedo a generar su solicitud✍️\n\nCreación de solicitud: xxxx, permítame un momento, procedo a generar su solicitud✍️\n\n— o —\n\nPermítame un momento , procedo a generar su solicitud✍️\n\nUn momento para poder verificar lo solicitado 👀'},
+ {g:'Reservas',id:'datosres',t:'Pedir datos de reserva',tag:['Une 2 macros','warn'],note:'Incluye pasajeros y equipaje (antes "PAX INFO" iba aparte) y pide RUC y correo de una vez si es factura. Cada dato termina en ":" para que el cliente copie y complete.',
+  f:[['empresa','Empresa (opcional)','']],
+  b:v=>`Con gusto te ayudo con tu reserva${v.empresa?' para *'+v.empresa+'*':''} 😊 Envíame estos datos en un solo mensaje:\n\n🗓️ Fecha y hora:\n📍 Lugar de recojo:\n📍 Destino:\n💳 Método de pago:\n📄 Boleta o factura (si es factura, RUC y correo):\n👥 N.º de pasajeros:\n🧳 N.º de maletas:\n💬 Algo más para tu reserva (opcional):`,
+  antes:'¡Hola, te saluda Julianny y te doy la bienvenida al WhatsApp de Directo💙! Para continuar por favor indícame lo siguiente:\n🗓️ Fecha y hora:\n📍 Lugar de recojo:\n📍 Lugar de destino:\n🧍cantidad de personas:\n🧳cantidad de maletas:\n💳 Método de pago:\n📄 ¿Solicitas boleta o factura? (En caso de solicitar factura por favor bríndame tu número de RUC):\n¿Alguna información adicional que desees agregar a tu reserva?\n\n— o —\n\nEmisión de reserva: Por favor, bríndanos los siguientes datos sobre tu viaje. (fecha y hora, recojo, destino, método de pago, boleta o factura)\n\n— o —\n\nBríndanos los siguientes detalles para agendar tu reserva:\n🗓️ Fecha y hora:\n📍Lugar o Dirección de recojo:\n📍lugar o Dirección de destino:\n💳 Método de pago:\n\n— o —\n\nPor favor, bríndame los siguientes datos sobre tu viaje para poder ayudarte con la reserva.\n\n🗓️ Fecha y hora:\n\n📍 Lugar de recojo:\n\n📍 Lugar de destino:\n\n💳 Método de pago:\n\n📄 ¿Solicitas boleta o factura? (En caso de factura bríndame tu número de RUC)\n\n👥 Cantidad de pasajeros:\n\n🧳 Cantidad de equipaje:\n\nQuedo atenta a tu respuesta.😊\n\n+ PAX INFO: Me confirmas la cantidad de pasajeros y equipaje que vamos a trasladar por favor.'},
+ {g:'Reservas',id:'backus',t:'Datos de reserva Backus',tag:['Mejorado','good'],note:'Fecha y hora juntas, un dato por línea, sin líneas en blanco entre datos.',
+  f:[],b:v=>`Para tu reserva corporativa de *Backus*, envíame estos datos en un solo mensaje:\n\n🗓️ Fecha y hora:\n📍 Origen:\n📍 Destino:\n✅ Autorizador:\n🪪 Código de trabajador:\n🏷️ Centro de costo:\n📝 Motivo del viaje:\n🆔 DNI del usuario:\n💬 Observaciones (opcional):\n\nCon esos datos registro tu reserva y te la confirmo por aquí.`,
+  antes:'Indícame los siguientes datos y en breve un asesor te confirmará tu reserva:\n\nFecha:\n\nHora:\n\nOrigen:\n\nDestino:\n\nAutorizador:\n\nCód. trabajador:\n\nCentro de costo:\n\nMotivo de viaje:\n\nDNI de usuario:\n\nObservaciones adicionales:'},
+ {g:'Reservas',id:'pax',t:'Pasajeros y equipaje',tag:['Mejorado','good'],note:'Si usas "Pedir datos de reserva" ya no hace falta. Explica para qué lo preguntas.',
+  f:[],b:v=>`¿Cuántos pasajeros viajan y cuántas maletas llevan (y de qué tamaño)? Así te asignamos el vehículo adecuado 🚘 Si quieres agregar algún dato a la reserva, envíalo en el mismo mensaje.`,
+  antes:'Consultas para reservas de nuevo aeropuerto: Para continuar necesito que me brindes por favor la siguiente información:\nCantidad de pasajeros\nCantidad y tipo de equipaje\n¿Algún dato específico para ingresar en la reserva?\n\n— o —\n\nMe confirmas la cantidad de pasajeros y equipaje que vamos a trasladar por favor.'},
+ {g:'Reservas',id:'enproceso',t:'Reserva en proceso',tag:['Evitar si puedes','bad'],note:'Úsalo solo si registrar la reserva va a tardar. Si la registras enseguida, envía directo la confirmación (macro "Confirmar reserva") y te ahorras esta burbuja.',
+  f:[],b:v=>`Gracias, ya tengo tus datos 🙌 Registro tu reserva y en unos minutos te envío la confirmación por aquí.`,
+  antes:'Ahora procedo con tu reserva, dame unos minutos por favor. 😁'},
+ {g:'Reservas',id:'modif',t:'Servicio modificado',tag:['Mejorado','good'],note:'Decir qué se cambió (o qué se agregó) evita que el cliente pregunte de nuevo. Sirve también para "Información agregada con éxito".',
+  f:[['codigo','N.º de servicio','5920534'],['tipo','Qué hiciste','modificamos',['modificamos','agregamos información a']],['cambio','Qué se cambió o agregó','la hora de recojo ahora es 6:00 a.m.']],
+  b:v=>`Listo ✅ ${v.tipo==='modificamos'?'Modificamos':'Agregamos información a'} tu servicio *${v.codigo}*: ${v.cambio}.\n\nSi necesitas otro cambio, escríbenos por aquí.`,
+  antes:'El servicio ha sido modificado según lo solicitado. ✅\n\nSu servicio fue modificado según lo solicitado✅\n\nInformacion agregada con éxito✅'},
+ {g:'Reservas',id:'anulacion',t:'Reserva anulada',tag:['Mejorado','good'],end:true,note:'Di qué reserva se anuló para que no quede duda.',
+  f:[['codigo','N.º de servicio','5920534']],b:v=>`Listo ✅ Anulamos tu reserva *${v.codigo}*. ¿Te ayudo con algo más?`,
+  antes:'De acuerdo, ya se ha procedido con la anulación de tu reserva. ¿Algo más en lo que te pueda asistir?'},
+ {g:'Reservas',id:'registro',t:'Cliente nuevo: registro',tag:['Une 2 burbujas','warn'],note:'Pregunta y pide los datos en el mismo mensaje: si ya tiene usuario, solo lo dice.',
+  f:[['nombre','Nombre del cliente (opcional)','']],b:v=>`${hola(v.nombre)}¿Ya tienes usuario en Directo?\n\nSi es tu primera vez, envíame tu *nombre, apellido y correo* y te registro para continuar con tu reserva 😊`,
+  antes:'Hola xxxx, ¿es la primera vez que solicitas un servicio con nosotros o ya cuentas con un usuario?\n\nPara registrarte bríndame por favor tu nombre, apellido y correo.'},
+ {g:'Reservas',id:'envio',t:'Datos para un envío',tag:['Mejorado','good'],note:'Para envíos de paquetes: además de la ruta, pide quién entrega y quién recibe.',
+  f:[],b:v=>`Con gusto te ayudo con tu envío 📦 Envíame estos datos en un solo mensaje:\n\n🗓️ Fecha y hora:\n📍 Recojo:\n📍 Destino:\n🙋 Quién entrega (nombre y teléfono):\n🙋 Quién recibe (nombre y teléfono):\n💳 Método de pago:\n📄 Boleta o factura (si es factura, RUC):`,
+  antes:'PARA ENVÍOS\nPor favor, bríndanos los siguientes datos sobre tu viaje.\n🗓️ Fecha y hora:\n📍 Lugar de recojo:\n📍 Lugar de destino:\n💳 Método de pago:\n📄 ¿Solicitas boleta o factura? (En caso de solicitar factura por favor bríndame tu número de RUC):\n¿Quién entrega y recibe? Nombre y teléfono.'},
+ {g:'Reservas',id:'aeromodulo',t:'Recojo en el aeropuerto (módulo Directo)',tag:['Une 3 textos','warn'],note:'Junta los 3 textos del aeropuerto en uno. Adjunta la imagen con la ubicación de los módulos en el mismo envío, como descripción.',
+  f:[['codigo','N.º de servicio','5920534']],b:v=>`Cuando llegues, acércate al *módulo de Directo* del aeropuerto con tu código de reserva *${v.codigo}* y te ayudamos a abordar tu taxi 🚕 Te adjunto la ubicación de los módulos.\n\n• El tiempo de espera en el aeropuerto es *ilimitado*: abordas cuando llegues al módulo.\n• La tarifa puede cambiar según la hora en que abordes.`,
+  antes:'Recuerda que debes acercarte con tu código de reserva al módulo de Directo en el aeropuerto para que te podamos ayudar abordar tu taxi, te adjunto la ubicación de nuestros módulos. Asimismo, recuerda que tu tarifa se encuentra sujeta a modificaciones en función al horario en el que abordes el vehículo. 🚕\n\nNo te preocupes, comentarte que el tiempo de espera en el aeropuerto es ilimitado, por lo que al momento que te acerques al módulo de Directo podrás abordar tu taxi. 🚕\n\nComentarte que el tiempo de espera en el aeropuerto es ilimitado…'},
+ {g:'Reservas',id:'capacidad',t:'Excede la capacidad del vehículo',tag:['Mejorado','good'],note:'Explica el porqué en simple y termina con una pregunta.',
+  f:[['unidad','Unidad recomendada','una van']],b:v=>`Por la cantidad de pasajeros y equipaje, te recomendamos *${v.unidad}*: así el traslado es cómodo y seguro 🚐\n\nPodemos registrar el vehículo que pediste, pero queda sujeto a disponibilidad y el conductor podría no aceptar el servicio si no entran todos. ¿Lo registramos con ${v.unidad}?`,
+  antes:'EXCEDE CAPACIDAD: El tipo de unidad que te recomendamos está pensado para garantizar que el traslado se realice de acuerdo con los protocolos establecidos por Directo. Podemos tomar en cuenta el tipo de vehículo que nos solicitas; sin embargo, esto queda sujeto a disponibilidad, por lo que no podemos asegurar que el conductor asignado pueda realizar el servicio.'},
+ {g:'Reservas',id:'correoresp',t:'Respuesta por correo: reservas registradas',tag:['Mejorado','good'],note:'Para la bandeja de correos.',
+  f:[['nombre','Nombre del cliente (opcional)',''],['codigos','N.º de reserva(s)','5920534, 5920535']],b:v=>`${v.nombre?`Hola, ${v.nombre}:`:'Hola:'}\n\nRegistramos tu solicitud. N.º de reserva(s): *${v.codigos}*.\n\nPuedes seguir cada servicio desde 30 minutos antes en el link que te enviamos.`,
+  antes:'Hola xxxx,\nSolicitud procesada con éxito, número (s) de reserva (s):'},
+ {g:'Reservas',id:'correoespera',t:'Solicitud que llegó por correo',tag:['Mejorado','good'],note:'Da el plazo y di que ya lo priorizaste.',
+  f:[['nombre','Nombre del cliente (opcional)','']],b:v=>`${hola(v.nombre)}Ya avisé al equipo que gestiona los correos para que prioricen tu solicitud. El plazo de respuesta por correo es de hasta *24 horas*, pero te avisamos por aquí apenas esté lista.`,
+  antes:'Hola XXX, en este momento lo he reportado con el agente que gestiona la bandeja de correos, igualmente comentarte que el plazo de respuesta mediante correo es dentro de las 24 h, sin embargo se ha notificado para que se pueda priorizar tu servicio.'},
+ {g:'Reservas',id:'rutas',t:'Rutas corporativas no autorizadas',tag:['Mejorado','good'],note:'Completa el nombre de la empresa (en el texto original faltaba) y termina con una pregunta para que el cliente sepa qué hacer.',
+  f:[['empresa','Empresa','Las Bambas']],
+  b:v=>`Te cuento que, por ser un servicio corporativo de *${v.empresa}*, solo están autorizados los viajes hacia tu domicilio registrado.\n\nSi la reserva es hacia otra dirección, no será aprobada. ¿La registramos hacia tu domicilio?`,
+  antes:'En caso de ser servicio corporativo solo permite realizar las rutas hacia tu domicilio registrado en\n\nOtras rutas no están autorizadas, si realizo la reserva en una ruta no autorizada el servicio no será aprobado.'},
+ {g:'Pagos',id:'prepagolib',t:'Viaje prepago (VISALINK)',tag:['En Macros','good'],go:'prepago',note:'Usa el macro "Viaje prepago (garantía)": los mismos datos en 4 puntos cortos y termina pidiendo un SÍ para enviar el link.',
+  f:[],b:v=>`(Usa el macro "Viaje prepago (garantía)".)`,
+  antes:'VERIFICACIÓN DE SERVICIO CON VISALINK: Tu servicio ha sido registrado, te adjunto el detalle, por favor verifica los datos para poder adjuntar el link de pago. ¿Son conformes las direcciones?\n\n…¿Estás de acuerdo con este medio de pago? 👀\n\n— o —\n\nTe contamos que los viajes pre-pago 💳 tienen un monto adicional de S/ 15.00 que son utilizados como garantía.\nEsta garantía cubre aquellos montos extra que puedan ocurrir durante el viaje, tales como peajes, parqueo y tiempo de espera.\nSi durante el viaje no se han generado montos extras, nuestro comercio ingresará la solicitud de extorno en un plazo máximo de 72 horas hábiles. Es importante mencionar que el proceso de devolución podría durar hasta 30 días calendario y dependerá únicamente del banco emisor de la tarjeta.'},
+ {g:'Pagos',id:'linkpagolib',t:'Link de pago + captura del pago',tag:['En Macros','good'],go:'linkpago',note:'Link y pedido de la captura van en el mismo mensaje. Usa el macro "Link de pago + pedir captura".',
+  f:[],b:v=>`(Usa el macro "Link de pago + pedir captura".)`,
+  antes:'Adjunto de enlace de pago: Ya se ha creado tu link de pago. ¡¡Quedamos a la espera de la captura de pantalla como evidencia del pago!!\n\n— o —\n\nAdjunto el link de pago:\n\nQuedamos a la espera del print  de transferencia como evidencia del pago para proceder con la reserva.'},
+ {g:'Pagos',id:'visaverif',t:'Verificar datos antes del link de pago',tag:['Mejorado','good'],note:'Pide una respuesta corta (SÍ) para enviar el link.',
+  f:[],b:v=>`Registramos tu servicio 👆 Revisa que las direcciones y los datos sean correctos.\n\nSi todo está bien, responde *SÍ* y te envío el link de pago 💳`,
+  antes:'VERIFICACIÓN DE SERVICIO CON VISALINK: Tu servicio ha sido registrado, te adjunto el detalle, por favor verifica los datos para poder adjuntar el link de pago.\n\n¿Son conformes las direcciones?'},
+ {g:'Servicio inmediato',id:'inmediato',t:'Tiempo de espera',tag:['Mejorado','good'],note:'La promesa es 15 minutos. Con alta demanda el tiempo depende de las unidades cerca del punto de recojo y de la zona: elige el tiempo estimado que ves en el sistema (no es fijo). Termina siempre con una respuesta clara (SÍ).',
+  f:[['caso','Situación','normal',['normal','alta demanda']],['t','Tiempo estimado (alta demanda)','30 minutos',['20 minutos','30 minutos','45 minutos','1 hora','2 horas']]],
+  b:v=>v.caso==='normal'?`Tu servicio inmediato llega en aprox. *15 minutos*, según las unidades disponibles cerca de tu punto de recojo 🚕\n\n¿Lo pedimos? Responde *SÍ* para continuar.`:`En este momento tenemos alta demanda en tu zona 😔 Según las unidades disponibles cerca de tu punto de recojo, el tiempo estimado de llegada es de *${v.t}*.\n\n¿Puedes esperarnos? Responde *SÍ* para continuar.`,
+  antes:'SERVICIO INMEDIATO SIN DISPO: Hola xxxxx, veo que has solicitado un servicio inmediato, comentarte que no contamos con disponibilidad de unidades por la zona en este momento, el tiempo estimado de espera es entre 30 a 45 minutos, ¿podrías esperarnos?\n\n— o —\n\nTe comento que los servicios inmediatos tienen un lapso de atención de entre 15 a 45 minutos esto, dependiendo de la disponibilidad de las unidades cercanas a su punto de recojo. ¿Está de acuerdo?\n\n— o —\n\n, veo que has solicitado un servicio inmediato, te comento que en estos momentos no contamos con unidades cerca a la zona disponibles por lo que el tiempo de espera estimado es de 30 a 60 minutos, ¿podrías esperarnos?'},
+ {g:'Pagos',id:'bcp',t:'Beneficio BCP',tag:['Mejorado','good'],note:'Pasos numerados en lugar de una sola oración larga. Actualizado con el flujo del ícono de regalo y el monto de S/ 70 (texto más reciente del equipo).',
+  f:[],b:v=>`Para usar tu descuento de *S/ 70* con tarjeta BCP, sigue estos pasos en la app de Directo 📲\n\n1. Agrega tu tarjeta BCP como método de pago y márcala como frecuente con la estrella ⭐\n2. Antes de crear tu reserva, ingresa el código promocional que te dio el BCP: en la pantalla principal, toca el ícono de regalo 🎁 (arriba a la derecha).\n3. Crea tu reserva: el descuento se aplica al generarla ✅`,
+  antes:'Para acceder al beneficio de S/70 de descuento con tu tarjeta BCP, primero debes agregarla como método de pago frecuente en el aplicativo, marcándola con la estrella ubicada junto al medio de pago. Luego, el banco te brindará un código promocional, el cual deberás ingresar antes de crear tu reserva. Puedes hacerlo desde la pantalla principal del aplicativo, en la parte superior derecha, seleccionando el ícono de regalo. Una vez ingresado el código, el descuento se aplicará al momento de generar tu reserva.\n\n— o —\n\nPara obtener el beneficio debes ingresar tu tarjeta BCP asociada a tu código en nuestra app y seleccionarla como medio de pago (asegúrate que esté seleccionada mediante las estrellas laterales las cuales deben estar sombreadas), una vez ello ve a promociones ahí verás el código predeterminado, ingresa los datos de tu reserva y listo. Ya puedes disfrutar de tu beneficio.'},
+ {g:'Comprobantes',id:'factpedir',t:'Pedir datos de factura',tag:['Mejorado','good'],
+  f:[],b:v=>`Para emitir tu factura, envíame en un solo mensaje:\n\n• N.º de servicio (7 dígitos):\n• RUC:\n• Razón social:\n• Correo para enviarla:\n• Importe:`,
+  antes:'Hola xxx, para poder ayudarte, bríndame los siguientes datos por favor:\n- Código de Reserva:\n- R.U.C. :\n- Razón Social:\n- Correo Electrónico:\n- Importe:\n\n— o —\n\nme podrías facilitar el número de RUC con el cual se emite y una dirección de correo a donde sería enviado el comprobante  por favor.'},
+ {g:'Comprobantes',id:'factenv',t:'Comprobante enviado al correo',tag:['Une 2 burbujas','warn'],end:true,
+  f:[['tipo','Tipo','factura',['factura','boleta']],['correo','Correo del cliente','nombre@empresa.com']],
+  b:v=>`Listo ✅ Enviamos tu ${v.tipo} a *${v.correo}*.\n\nSi no la ves en unos minutos, revisa también tu carpeta de spam.`,
+  antes:'Factura enviada: Ya se ha procedido con el envío de la factura al correo mencionado. ¿Algo más en que pueda ayudarte?\n\n— o —\n\nAcabo de realizar el envio de tu comprobante al correo.\n\nPor favor verifica tu bandeja de entrada y spam en los próximos minutos. 😊'},
+ {g:'Comprobantes',id:'factplazo',t:'Cuándo llega la factura',tag:['Mejorado','good'],note:'Di cuándo y por dónde llega, para que el cliente no vuelva a escribir a preguntar.',
+  f:[['codigo','N.º de servicio (opcional)','']],
+  b:v=>`Tu factura${v.codigo?` del servicio *${v.codigo}*`:''} se emite cuando termina el servicio y te llega en un máximo de *48 horas* 🧾\n\nSi pasado ese plazo no la tienes, escríbenos por aquí y la reenviamos.`,
+  antes:'La factura se emite después de finalizado el servicio en un lapso no mayor a 48 horas.'},
+ {g:'Comprobantes',id:'factdatos',t:'Datos de factura agregados',tag:['Mejorado','good'],end:true,note:'Di cuándo y a dónde llega la factura.',
+  f:[['codigo','N.º de servicio','5920534']],b:v=>`Listo ✅ Agregamos los datos de tu factura al servicio *${v.codigo}*. Cuando termine el servicio, te llegará al correo registrado en un máximo de *48 horas* 🧾`,
+  antes:'SE AGREGARON LOS DATOS DE LA FACTURA: Comentarte que se han agregado los datos de tu factura, al finalizar el servicio te llegará al correo registrado en el sistema.'},
+ {g:'Conductor y servicio',id:'condinfo',t:'Datos del conductor',tag:['En Macros','good'],go:'conductor',note:'Ahora "Datos del conductor" tiene la opción Estado: asignado, en camino o ya llegó al punto de recojo. Los datos se llenan con la captura.',
+  f:[],b:v=>`(Usa el macro "Datos del conductor": arma estado, datos, tiempo y link en una sola burbuja.)`,
+  antes:', verifico que el conductor se encuentra en camino al punto de origen.\n\n, verifico que el conductor ya se encuentra ubicado en el punto de origen.\n\nTe facilito sus datos para que puedas ubicarlo con mayor facilidad.'},
+ {g:'Conductor y servicio',id:'demora',t:'Demora o reasignación',tag:['En Macros','good'],go:'demora',note:'Usa el macro "Demora o reasignación".',
+  f:[],b:v=>`(Usa el macro "Demora o reasignación": aviso, tiempo y pregunta en una sola burbuja.)`,
+  antes:'Hola, !\n\nComentarte que estamos presentando una demora con tu servicio 😔\n\nEstamos asignándote otro conductor, sin embargo, es probable que demoremos hasta 30 minutos luego de la hora de tu reserva.\n\nEn caso logremos llegar antes, el conductor se contactará contigo 🚖\n\n¿Sería posible que nos esperes, por favor? 🙏'},
+ {g:'Conductor y servicio',id:'disculpas',t:'Estado del servicio + disculpas',tag:['Une 3 burbujas','warn'],end:true,note:'Estado, disculpa y registro del caso en un solo mensaje.',
+  f:[['nombre','Nombre del cliente (opcional)',''],['codigo','N.º de servicio','5920534'],['estado','Estado','en curso',['en curso','finalizado','anulado por el usuario']]],
+  b:v=>{const e={'en curso':'ya está en curso, camino a tu destino','finalizado':'ya finalizó','anulado por el usuario':'fue anulado por el usuario'}[v.estado];return `${hola(v.nombre)}Revisé tu servicio *${v.codigo}*: ${e}.\n\nTe pido disculpas por la demora y las molestias 🙏 Dejé registrado lo sucedido en el detalle del servicio.`;},
+  antes:'DISCULPAS: Lamentamos que la experiencia dentro de nuestro servicio no haya sido la que esperaba. Nos esforzaremos aún más 💪 por seguir mejorando como equipo. Disculpe una vez más por las molestias generadas por favor.\n¡Gracias por escribir al Centro de Soporte de Directo 🚘 Que tenga un excelente día!\n\nLamentamos la demora en brindarte una respuesta y que nuestro servicio no haya sido la que esperaba…\n\n— o —\n\n, verifico que el servicio se encuentra en curso, en camino hacia su destino.\n\nTe ofrezco las disculpas del caso por la demora en el servicio y los inconvenientes ocasionados.\n\nMil disculpas por las molestias, he dejado registrado lo sucedido en el detalle del servicio.'},
+ {g:'Conductor y servicio',id:'tracklink',t:'Ubicar al conductor (link)',tag:['Mejorado','good'],note:'Si el conductor ya está asignado, usa mejor el macro "Datos del conductor".',
+  f:[['codigo','N.º de servicio','5920534']],b:v=>`Desde que se asigne tu conductor (entre 20 y 30 minutos antes de tu reserva) verás sus datos y su ubicación en este link 😉\n${LINK}${v.codigo}`,
+  antes:'Recuerda que podrás visualizar los datos y ubicación de tu conductor aprox. 20 minutos antes de la hora de tu reserva.\n\nEn este link podrás visualizar los datos del conductor y el tracking de tu servicio 😉\nhttps://portal.directoapp.pe/intranet/compartir-servicio/5152094'},
+ {g:'Conductor y servicio',id:'nosecreto',t:'Servicio no se concretó (falla del conductor)',tag:['Mejorado','good'],note:'Disculpa, explica y ofrece el nuevo horario en el mismo mensaje.',
+  f:[['hora','Hora del servicio','8:00 a.m.'],['nueva','Disponible desde','9:00 a.m.']],b:v=>`Lo sentimos mucho 😔 Por un inconveniente con el conductor, tu servicio de las *${v.hora}* no pudo realizarse.\n\nTenemos disponibilidad a partir de las *${v.nueva}*. ¿Te lo reservo en ese horario?`,
+  antes:'Incidencia de taxis por demora: Lamentamos informarte que por un inconveniente con el conductor, el servicio de taxi programado para las [hora] no pudo concretarse. La próxima disponibilidad es a partir de las [hora disponible]. Disculpa las molestias y gracias por tu comprensión.'},
+ {g:'Conductor y servicio',id:'reclamo',t:'Reclamo escalado',tag:['Mejorado','good'],note:'Da el código y un plazo; si no sabes el plazo, deja la casilla vacía.',
+  f:[['codigo','Código del reclamo','R-1234'],['plazo','Plazo de respuesta (opcional)','']],b:v=>`Registramos tu reclamo con el código *${v.codigo}* y ya lo enviamos al área encargada. Te contactarán ${v.plazo?`en un plazo de *${v.plazo}*`:'lo antes posible'} 🙏`,
+  antes:'RECLAMO ESCALADO: Ya tu reporte ha sido enviado al área correspondiente, el código es xxx se contactarán contigo a la brevedad posible.'},
+ {g:'Conductor y servicio',id:'sinunidades',t:'Sin unidades para ese horario',tag:['Une 2 burbujas','warn'],note:'Termina ofreciendo el nuevo horario: el cliente solo responde sí o no.',
+  f:[['hora','Disponible desde','9:00 a.m.']],
+  b:v=>`Lo siento 😔 Por ahora no tenemos unidades disponibles para el horario que solicitas.\n\nTenemos disponibilidad a partir de las *${v.hora}*. ¿Te la reservo para ese horario?`,
+  antes:'SIN DISPO POR NAVIDAD: Lamentamos informarte que no contamos con disponibilidad para atenderte en el horario solicitado, ya que todas nuestras unidades se encuentran programadas. Sin embargo, tenemos disponibilidad a partir de mañana a las 07:00 horas.\n\n— o —\n\nHola xxxx, comentarte que tenemos disponibilidad para registrar el servicio a partir de las xxxxhrs, ¿procedemos con la solicitud?\n\n— o —\n\n, disculpa te comento que por ahora no contamos con unidades disponibles para el horario que solicitas.\n\nTendríamos disponibilidad a partir de las 9 am'},
+ {g:'Conductor y servicio',id:'cancel',t:'Cancelación por falta de unidades',tag:['Une 3 burbujas','warn'],end:true,
+  f:[['nombre','Nombre del cliente (opcional)',''],['codigo','N.º de servicio','5920534']],
+  b:v=>`${hola(v.nombre)}Lamento mucho los inconvenientes con tu servicio *${v.codigo}* 😔\n\nPor ahora no tenemos unidades disponibles para atenderlo. Por eso te avisamos de la cancelación a tiempo, para que puedas buscar otra opción de traslado sin perder más tiempo.\n\nSeguiremos trabajando para mejorar 💪 Disculpa nuevamente las molestias.`,
+  antes:',entiendo el malestar por las acciones tomadas hacia tu servicio, te ofrezco las disculpas del caso por los inconvenientes generados.\n\nSin embargo, por el momento no contamos con unidades disponibles para poder realizar tu servicio, por ello optamos por informar la cancelación del servicio y así puedas ubicar otras opciones de traslado sin afectar el tiempo.\n\nLamentamos que la experiencia dentro de nuestro servicio no haya sido la que esperaba. Nos esforzaremos aún más 💪 por seguir mejorando como equipo. Disculpe una vez más por las molestias generadas por favor.\n\n¡Gracias por escribir al Centro de Soporte de Directo 🚘 Que tenga un excelente día!'},
+ {g:'Conductor y servicio',id:'app',t:'Especialista en la app',tag:['Mejorado','good'],note:'Fuera de horario dice "en su siguiente horario" (no "mañana"), así sirve también el sábado por la tarde.',
+  f:[['caso','Situación','en horario',['en horario','fuera de horario']]],
+  b:v=>v.caso==='en horario'?`Te paso con nuestro especialista en la app para que te ayude mejor 📲 ¿Te parece bien?`:`Nuestro especialista en la app atiende de lunes a viernes de 9 a.m. a 6 p.m. y los sábados de 9 a.m. a 1 p.m.\n\nYa dejamos registrado tu caso para que te atienda con prioridad en su siguiente horario 🙌`,
+  antes:'Te transferiré con mi compañero experto en app para que te pueda dar mayor soporte. ¿Está bien?\n\nTe comento que nuestro experto en App Pasajero atiende de 9 a 6 pm de lunes a viernes y sábado de 9 a 1pm.\n\nReportaremos tu caso para que mañana pueda atenderte con prioridad.'},
+ {g:'Cierre',id:'cierre',t:'Respuesta + "¿algo más?" + despedida',tag:['En Macros','good'],go:'cierre',note:'"Ayuda final" y "Despedida" van al final de tu respuesta, no como burbujas aparte. Usa el macro "Respuesta + cierre".',
+  f:[],b:v=>`(Usa el macro "Respuesta + cierre".)`,
+  antes:'Perfecto... ¡Gracias por escribir al Centro de Soporte de Directo 🚘!\nQue tengas un excelente día y Buen Viaje. 🚕\n\n— o —\n\nNecesitas que te ayude con algo adicional? 😊\n\nGracias por contactar con el centro de soporte Directo 🚘💙\n\n¡Gracias por escribir al Centro de Soporte de Directo 🚘!\nQue tengas una excelente tarde🙋‍♀️‍!\n\n¡Gracias por escribir al Centro de Soporte de Directo 🚘🙋‍♀️‍\n! ¡Que tenga un excelente día!'},
+ {g:'Cierre',id:'recordatorio',t:'Recordatorio (5 min antes de cerrar)',tag:['Evitar si puedes','bad'],note:'Cereza ya envía avisos automáticos de inactividad: si el bot lo hace, no lo repitas. Si lo envías, recuerda qué falta para que el cliente responda rápido.',
+  f:[['falta','Qué falta','tu confirmación de la reserva']],
+  b:v=>`¿Sigues ahí? 😊 Solo necesito ${v.falta} para continuar.`,
+  antes:'Espera de respuesta: Recuerda que estoy aquí para brindarte la ayuda que necesites😁.\n\n— o —\n\nRecuerda que me encuentro a la espera de su respuesta🤓.'},
+ {g:'Cierre',id:'noresp',t:'Cliente no responde',tag:['Une 4 burbujas','warn'],note:'Un solo mensaje al cerrar, con el saludo según la hora (día, tarde o noche): no envíes "Gracias por escribir" aparte. Unifica las 4 versiones del equipo.',
+  f:[['franja','Saludo final','día',['día','tarde','noche']]],b:v=>`Entendemos que ahora no puedas responder 🕒 Cerramos esta conversación por el momento.\n\nCuando nos escribas, continuamos con lo que conversamos.\n\n¡Gracias por escribir al Centro de Soporte de Directo 🚘! Que tengas ${v.franja==='día'?'un excelente día':'una excelente '+v.franja} 💙`,
+  antes:'Finalizamos la conversación al no tener respuesta 🥲.\n¡Gracias por escribir al Centro de Soporte de Directo 🚘 ¡¡Que tengas un excelente día!! (versiones día / tarde / noche)\n\n— o —\n\nEntendemos que en este momento no puedes responder 🕒\nDejamos la conversación pausada y estaremos aquí cuando regreses.\n¡Gracias por escribir al Centro de Soporte de Directo 🚘!\n¡Que tengas una excelente tarde!\n\n— o —\n\nComprendemos que en este instante no puedas responder,\ncuando lo hagas una de mis compañeras te atenderá para continuar\ncon la atención de todo lo que hemos conversado previamente.\n\n¡Gracias por escribir al Centro de Soporte de Directo 🚘🙋‍♀️‍\n\n— o —\n\nEn caso no puedas responder en este momento, uno de mis compañeros te ayudará gustosamente.\n\nEsperamos se pueda volver a contactar por este medio.\n\nGracias por contactar con el centro de soporte Directo 🚘💙\n\n¡Que tengas un excelente día! 😊💙'},
+ {g:'Cierre',id:'confirmada',t:'Reserva realizada / confirmada',tag:['En Macros','good'],go:'reserva',note:'"Confirmación" y "Reserva confirmada" se reemplazan con el macro "Confirmar reserva": pegas el resumen del sistema y sale todo en una burbuja.',
+  f:[],b:v=>`(Usa el macro "Confirmar reserva".)`,
+  antes:'Su reserva ha sido generada con éxito, por favor verificar que los datos estén correctos. ¿Todo conforme?\n\nHola xxxx, ya se ha registrado tu reserva, te adjunto los datos.\n\nHola xxxx, ya se ha modificado tu reserva, te adjunto los datos. ¿Todo conforme?\n\n— o —\n\nReserva confirmada, por favor tenga la amabilidad de revisar su solicitud, quedo atenta a su confirmación👀\n\nReserva realizada, por favor verifica los siguientes datos. Quedo atenta a tu confirmación. 😊\n\nReserva realizada ✅'},
+ {g:'Comprobantes',id:'compplantilla',t:'Corregir comprobante (vino de la plantilla)',tag:['Nuevo','good'],note:'Cuando el cliente toca "Necesito ayuda" en la plantilla automática, el N.º de servicio ya está en el mensaje de arriba: no lo pidas. Pide todo lo que falte en una sola burbuja.',
+  f:[['codigo','N.º de servicio (está en la plantilla)','5865859']],
+  b:v=>`Hola 👋 Ya tengo los datos de tu servicio *${v.codigo}*. Para corregir tu comprobante, envíame en un solo mensaje:\n\n• Qué dato está mal y cómo debe decir:\n• Si necesitas factura: RUC y razón social:`,
+  antes:'(hoy) "Me indica el código del servicio." → "¿Cuál es el RUC?" → "¿Distrito de origen y destino?" — tres burbujas, y el código ya estaba en la plantilla.'},
+ {g:'Objetos olvidados',id:'objeto',t:'Pedir datos de objeto olvidado',tag:['Nuevo','good'],note:'Hoy estas conversaciones llegan a 7.8 mensajes del agente en promedio: los datos se piden uno por uno.',
+  f:[],b:v=>`Lamentamos lo ocurrido 😟 Para ayudarte a recuperar tu objeto, envíanos en un solo mensaje:\n\n🗓️ Fecha y hora del viaje:\n🔢 N.º de servicio (7 dígitos), si lo tienes:\n🎒 Qué objeto es (tipo, color, marca):\n📞 Un teléfono de contacto:\n\nCon esos datos lo coordinamos con el conductor y te escribimos por aquí.`,
+  antes:'(hoy) fecha, servicio, descripción y contacto se piden en burbujas separadas.'},
+ {g:'Conductores',id:'liqpedir',t:'Pago / liquidación: pedir datos',tag:['Nuevo','good'],note:'Hoy una de cada 4 conversaciones de pagos pasa de 10 mensajes del agente: "Permítame su liquidación", luego "Envíeme el Excel"… Pide todo junto.',
+  f:[],b:v=>`Compa, para revisar tu pago envíanos en un solo mensaje 👇\n\n🚖 N.º de móvil:\n📅 Semana de la liquidación:\n💰 Monto que falta o no coincide:\n📎 Captura o Excel de tu liquidación (adjúntalo en el mismo mensaje)\n\nCon eso lo revisamos y te respondemos por aquí 🙌`,
+  antes:'Permítame su liquidación por favor\n\nEnvieme el Excel de su liquidación compañero\n\n¿Le solicitaron esa documentación para actualizar?'},
+ {g:'Conductores',id:'liqresp',t:'Pago / liquidación: respuesta',tag:['Nuevo','good'],note:'Responde con el resultado completo en una sola burbuja.',
+  f:[['semana','Semana','del 22 al 28 de septiembre'],['estado','Resultado','está correcta',['está correcta','tiene una diferencia que vamos a regularizar','está en revisión']],['detalle','Detalle (monto, fecha de abono…)','El abono de S/ 115 se hará el viernes 3 de octubre.']],
+  b:v=>`Compa, revisamos tu liquidación de la semana ${v.semana}: ${v.estado}.\n\n${v.detalle}\n\nCualquier duda, escríbenos por aquí 🚖`,
+  antes:'Nos figura que si está correcto compañero\n\n(+ varias burbujas de seguimiento)'},
+ {g:'Conductores',id:'cuenta',t:'Cuenta / bloqueo: pedir datos',tag:['Nuevo','good'],note:'Pide de una vez lo necesario para revisar la cuenta.',
+  f:[],b:v=>`Compa, para revisar tu cuenta envíanos en un solo mensaje 👇\n\n🚖 N.º de móvil:\n📅 Desde cuándo no puedes conectarte:\n💬 Qué mensaje te sale en la app (si puedes, adjunta la captura en el mismo mensaje)\n\nLo revisamos y te respondemos por aquí 🙌`,
+  antes:'(hoy) móvil, desde cuándo y qué mensaje sale se piden en burbujas separadas.'},
+ {g:'Conductores',id:'gestplazos',t:'Plazos de gestiones (Conecta)',tag:['Nuevo','good'],note:'Un mensaje por gestión con el plazo exacto. Verifica con Supply: el Buscador Conecta dice adelanto especial hasta las 9:00 a.m. y este texto dice 10:00 a.m.',
+  f:[['g','Gestión','Cambio de flota',['Cambio de vehículo','Cambio de flota','Cambio de cuenta de pago','Adelanto especial','Adelanto semanal (aerolíneas)']]],
+  b:v=>({'Cambio de vehículo':'Compa, el *cambio de vehículo* se hace siempre de forma *presencial* en la oficina, con la unidad para la inspección 🚗',
+   'Cambio de flota':'Compa, el *cambio de flota* se pide hasta el *viernes* y se aplica desde el *lunes de la semana siguiente*. Lo registramos con un ticket 🎫',
+   'Cambio de cuenta de pago':'Compa, el *cambio de cuenta* se registra hasta el *miércoles*. Si lo pides después, la liquidación de esa semana se paga en tu cuenta actual 🏦',
+   'Adelanto especial':'Compa, el *adelanto especial* (préstamo, para cualquier flota, con 20% de costo) se pide por la app de *lunes a miércoles hasta las 10:00 a.m.* 💰',
+   'Adelanto semanal (aerolíneas)':'Compa, el *adelanto semanal* es solo para *aerolíneas* y se pide por la app de *lunes a miércoles hasta las 9:00 a.m.* 💰'})[v.g],
+  antes:'Cambio de vehículo: Siempre presencial\nCambio de flota: Se ticketea y se cambia desde el lunes de la siguiente semana. El ticket se ingresa máximo el viernes\nCambio de cuentas: El registro es hasta máximo el miércoles. Si se registra luego de la fecha, la liquidación inmediata saldrá en la cuenta regular\nAdelanto especial: Fecha máxima de registros: miércoles 10:00 hrs. (am)\nADELANTO SEMANAL (AEROLINEA SE PIDE LUN A MIER HASTA LAS 9AM)\nADELANTO ESPECIAL (PRESTAMO CUALQUIER FLOTA L A MIERC 10AM, CON UN %20)'},
+ {g:'Conductores',id:'pagofact',t:'Días de pago y plazo para facturar',tag:['Nuevo','good'],note:'Responde las dos dudas juntas: cuándo cobra y hasta cuándo factura.',
+  f:[['flota','Flota','Urbano / Aeropuerto',['Urbano / Aeropuerto','Aerolíneas']]],
+  b:v=>v.flota==='Aerolíneas'?`Compa, en *aerolíneas*:\n\n• Cobras los *martes*: 3 semanas con pago express y la 4.ª semana con pago diferido.\n• Para facturar tienes una semana: desde el *martes* hasta el *martes siguiente a las 7:59 a.m.*\n\nTu liquidación la descargas desde la app 📲`:`Compa, en *urbano y aeropuerto*:\n\n• Cobras los *miércoles por la tarde*.\n• Para el pago express, emite tu factura hasta el *miércoles a las 9:00 a.m.*\n\nTu liquidación la descargas desde la app 📲`,
+  antes:'COBRO DIFERIDO EN AEROLINEAS MARTES (3 SEMANAS EXPRESS Y LA 4 DIFERIDO)\nATO Y URBANO (MIERCOLES) EN LA TARDE\nLIQUIDACION DEBE BUSCARLA EN SU APP Y DESCARGARLA\nURBANA Y ATO FACTURA (PAGO EXPRESS) HASTA EL MIERCOLES 09AM\nAEROLINEAS UNA SEMANA PARA EMITIR (DESDE MARTES HASTA EL PROX MARTES 7:59AM PARA FACTURAR)'},
+ {g:'Conductores',id:'factformato',t:'Cómo detallar la factura',tag:['Nuevo','good'],note:'Formato para que el conductor copie en la descripción de su factura.',
+  f:[],b:v=>`Compa, en la *descripción* de tu factura escribe así 👇\n\nSERVICIO DE TAXI · ID SERVICIO: ____ · FECHA SERVICIO: ____ · ORIGEN: ____ · DESTINO: ____\n\nReemplaza cada ____ con los datos del servicio.`,
+  antes:'FORMATO DE DETALLADO DE FACTURAS\n\nSERVICIO DE TAXI  ID SERVICIO:XXXXX  FECHA SERVICIO:XXXXXXX  ORIGEN SERVICIO:XXXX  DESTINO SERVICIO:XXXXX'},
+ {g:'Conductores',id:'tefacturo',t:'Acceso a sus facturas (tefacturo)',tag:['Nuevo','good'],note:'La contraseña NO está guardada en esta herramienta: escríbela tú en la casilla. No la publiques en grupos ni en documentos compartidos.',
+  f:[['correo','Correo del conductor',''],['clave','Contraseña','']],
+  b:v=>`Compa, para ver tus facturas entra aquí 👇\nhttps://tefacturo.pe/portal/login\n\n• Usuario: ${v.correo}\n• Contraseña: ${v.clave}`,
+  antes:'PARA QUE LOS CONDUCTORES PUEDAN ACCEDER A LAS FACTURAS INGRESAR AL ENLACE\nhttps://tefacturo.pe/portal/login\nEl correo del conductor\nContraseña: (la del equipo)'},
+ {g:'Conductores',id:'pexdesc',t:'Descuentos de PEX',tag:['Mejorado','good'],note:'Pregunta primero qué concepto le aparece y envía solo esa parte; si pide todo, usa "Todos".',
+  f:[['c','Concepto','Todos',['Todos','Sticker PEX','PEX con servicio (no apto)','PEX personal','PEX incidencias']]],
+  b:v=>{const T={'Sticker PEX':'• *Sticker PEX:* pago único de *S/ 20*, que se descuenta en la liquidación siguiente a la entrega del sticker.',
+   'PEX con servicio (no apto)':'• *PEX con servicio (conductor no apto):* *S/ 0.30 por cada servicio* con PEX en la semana, no por peaje. Aplica a aerolíneas y urbano, porque no pagan membresía PEX.',
+   'PEX personal':'• *PEX personal (sin servicio):* son peajes de uso particular. El monto llega a tu liquidación unas *2 semanas después*, más *S/ 0.30 por pase* ("Adicional PEX personal").',
+   'PEX incidencias':'• *PEX incidencias:* cuando hiciste un servicio pero no registraste el peaje en la app.'};
+   const L=v.c==='Todos'?Object.values(T):[T[v.c]];return `Compa, te explico ${v.c==='Todos'?'los descuentos de PEX':'este descuento de PEX'} 👇\n\n${L.join('\n\n')}`;},
+  antes:'Estimado conductor,\n\nLe detallamos los conceptos de descuento relacionados con PEX:\n\n* Sticker PEX: Único pago de S/ 20.00, que se carga en la siguiente liquidación por la entrega del sticker.\n* PEX con servicio – Conductor NO apto: Se cobra S/ 0.30 por cada servicio realizado con PEX. No depende de la cantidad de peajes, sino del número de servicios efectuados en la semana. Este adicional aplica para conductores de aerolíneas y urbanos porque no pagan membresía PEX.\n* PEX personal (sin servicio): Corresponde a los peajes usados de manera particular. El monto del peaje se traslada a su liquidación aproximadamente dos semanas después, según reporte de PEX. Además, se cobra S/ 0.30 adicionales por cada pase, bajo el concepto “Adicional PEX personal”.\n* PEX incidencias (con servicio): Aplica cuando realizó un servicio pero no registró el peaje en el aplicativo.'},
+ {g:'Conductores',id:'suspendido',t:'Conductor suspendido: cómo volver',tag:['Nuevo','good'],note:'Más de 6 meses: deriva a afiliaciones (contacto interno en el Buscador Conecta; no envíes números personales al conductor). Menos de 6 meses: reconexión en oficina.',
+  f:[['t','Tiempo suspendido','menos de 6 meses',['menos de 6 meses','más de 6 meses']]],
+  b:v=>v.t==='menos de 6 meses'?`Compa, para reactivarte acércate a la oficina para la *reconexión*: *martes o jueves, de 9:00 a.m. a 5:00 p.m.* 🏢`:`Compa, como tu suspensión pasa de 6 meses, tu reingreso va por el *proceso de afiliación*. Ya pasamos tu caso al equipo de afiliaciones y te contactarán por este medio 🙌`,
+  antes:'Cuando el conductor ha sido suspendido:\nmás de 6 meses se envía a proceso de afiliación: Andrea (teléfono)\nmenos de 6 meses, reconexión: martes y jueves a la oficina de 9 a 5pm'},
+ {g:'Conductores',id:'kusi',t:'Activación de KUSI: pedir documentos',tag:['Mejorado','good'],note:'Todo en una lista para que el conductor envíe de una vez.',
+  f:[],b:v=>`Compa, para activar *KUSI* envíanos estos documentos 👇\n\n🪪 DNI (ambas caras)\n🪪 Licencia (ambas caras)\n🔧 Revisión técnica\n📄 TUC-ATU, TUC y cartilla\n🛡️ SOAT\n📑 Antecedentes penales, judiciales y policiales\n📸 Fotos del vehículo: frontal, posterior, lateral izquierdo y lateral derecho\n✍️ Declaración jurada (modelo que te enviamos), llenada y firmada`,
+  antes:'ACTIVACIÓN DE KUSI\nSOLICITAR A CONDUCTOR: DNI (ambas caras), Licencia (ambas caras), Revisión técnica, TUC-ATU, Cartilla, TUC, SOAT y antecedentes penales, judiciales y policiales, Fotos del vehículo (frontal, posterior, lateral izq- lateral derecho)\nDEBE LLENAR MODELO DE DECLARACIÓN JURADA.'},
+ {g:'Comunicados a conductores',id:'comcanal',t:'Canal oficial Conecta',tag:['Mejorado','good'],note:'Lo importante primero: el número oficial. Los números dados de baja van al final.',
+  f:[],b:v=>`📢 *Atención, conductores*\n\nToda consulta o gestión con un ejecutivo se atiende solo por *Conecta Directo*:\n📲 *934 345 456* (WhatsApp)\n\nEs el canal único para todas las flotas: urbano, aeropuerto y aerolíneas. Tiene varios ejecutivos para atenderte rápido.\n\n⚠️ Estos números ya *no funcionan*:\n• 934 917 113 (urbano)\n• 970 522 007 y 997 098 170 (aeropuerto)\n• 970 584 271 (aerolíneas)`,
+  antes:'ATENCIÓN A CONDUCTORES 👇🏻👇🏻👇🏻\n\n👉 Toda gestión o consulta que requiera atención de una ejecutivo (a) debe realizarse únicamente por el canal oficial:\n📲 Conecta Directo: 934 345 456 (WhatsApp)\nEste canal cuenta con múltiples ejecutivos de atención disponibles para ayudarte y resolver tus consultas de manera rápida y efectiva.\n⚠️ Recuerda: este es el único canal de atención habilitado.\nEs un solo canal para todos los conductores de cualquier flota (urbano / aeropuerto / aerolíneas) ✍🏻✍🏻\nLes informamos que los siguientes números ya NO se encuentran en funcionamiento\n- 934 917 113 (Ejecutivo Urbano)\n- 970 522 007 (Ejecutivo Aeropuerto)\n- 997 098 170 (Ejecutiva Aeropuerto)\n- 970 584 271 (Ejecutivo Aerolíneas)'},
+ {g:'Comunicados a conductores',id:'comrespaldo',t:'Canal de respaldo (canal bloqueado)',tag:['Revisar número','warn'],note:'En el texto original el número de respaldo es el mismo que el canal bloqueado (934 345 456). Escribe el número de respaldo correcto antes de enviar.',
+  f:[['num','Número de respaldo','']],
+  b:v=>`📢 *Estimados conductores*\n\nDisculpen los inconvenientes con nuestro WhatsApp *934 345 456*: por reportes de spam fue bloqueado temporalmente y no pudimos ver ni responder algunos mensajes.\n\nMientras lo restablecemos, escríbannos al canal de respaldo 👇\n📲 *${v.num}*\n\nEnvíen ahí toda consulta o incidencia pendiente. Gracias por su comprensión 🙏`,
+  antes:'Estimados conductores, 👋\nOfrecemos nuestras disculpas por los inconvenientes presentados con el canal de atención de WhatsApp +51 934 345 456.\nDebido a reportes de spam realizados por algunos usuarios, el canal fue bloqueado temporalmente, lo que impidió visualizar y responder los mensajes pendientes.\n📲 Para garantizar la continuidad de la atención, hemos habilitado un canal de respaldo:\n👉 +51 934 345 456\nLes pedimos que toda consulta o incidencia no resuelta sea enviada a este nuevo número, donde recibirán el soporte correspondiente.\n⚡ Recuerden que la atención más ágil y directa es siempre vía WhatsApp.\nAgradecemos su comprensión y apoyo mientras trabajamos para restablecer el canal principal. 🙏'},
+];
+let libCur=LIB[0];const libVals={};
+function libList(){const q=(document.getElementById('lq').value||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');const box=document.getElementById('llist');box.innerHTML='';let last='';
+ LIB.filter(x=>!q||(x.t+' '+x.g+' '+x.antes).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').includes(q)).forEach(x=>{if(x.g!==last){const h=document.createElement('p');h.className='lgrp';h.textContent=x.g;box.appendChild(h);last=x.g;}
+  const b=document.createElement('button');b.type='button';b.className='litem';b.setAttribute('aria-pressed',x===libCur);b.innerHTML=`<span>${x.t}</span><span class="pill ${x.tag[1]}">${x.tag[0]}</span>`;b.onclick=()=>{libCur=x;libList();libRender();};box.appendChild(b);});
+ if(!box.children.length)box.innerHTML='<p class="hint">Sin resultados.</p>';}
+function libRender(){const x=libCur;document.getElementById('lwarn').hidden=true;libVals[x.id]=libVals[x.id]||{};const V=libVals[x.id];
+ document.getElementById('ltitle').textContent=x.t;document.getElementById('lnote').textContent=x.note||'';
+ const fb=document.getElementById('lfields');fb.innerHTML='';
+ x.f.forEach(([k,lab,ph,opts])=>{const w=document.createElement('div');const id='lf-'+x.id+'-'+k;let el;
+  if(opts){el=document.createElement('select');opts.forEach(o=>{const op=document.createElement('option');op.textContent=o;el.appendChild(op);});el.value=V[k]||opts[0];}
+  else{el=document.createElement('input');el.placeholder=ph;el.value=V[k]||'';}
+  el.id=id;el.oninput=el.onchange=()=>{V[k]=el.value;libMsg();};w.innerHTML=`<label for="${id}">${lab}</label>`;w.appendChild(el);fb.appendChild(w);});
+ const end=document.getElementById('lend');end.parentElement.hidden=!x.end;end.checked=V._end!==false;
+ const go=document.getElementById('lgo');go.hidden=!x.go;
+ document.getElementById('lantes').textContent=x.antes;libMsg();}
+function libMsg(){const x=libCur,V=libVals[x.id];const v={};x.f.forEach(([k,lab,ph,opts])=>{const s=(V[k]||'').trim();v[k]=s||(opts?opts[0]:/opcional/i.test(lab)?'':'['+lab.replace(/\s*\(.*?\)\s*/g,' ').trim().toLowerCase()+']');});
+ let t=x.b(v);if(x.end&&V._end!==false)t+='\n\n'+CIERRE;const ph=document.getElementById('lphone');ph.innerHTML='';
+ const b=document.createElement('div');b.className='bubble';b.innerHTML=wa(t);const s=document.createElement('span');s.className='t';s.textContent=hhmm()+' ✓✓';b.appendChild(s);ph.appendChild(b);ph.dataset.txt=t;
+ document.getElementById('lcopy').hidden=!!x.go;}
+document.getElementById('lq').oninput=libList;
+document.getElementById('lend').onchange=e=>{libVals[libCur.id]._end=e.target.checked;libMsg();};
+document.getElementById('lcopy').onclick=async()=>{const tx=document.getElementById('lphone').dataset.txt||'';const miss=[...new Set((tx.match(/\[[^\]\n]{2,40}\]/g)||[]))];const lw=document.getElementById('lwarn');if(miss.length){lw.textContent='No se copió. Completa: '+miss.join(', ').replace(/[\[\]]/g,'');lw.hidden=false;return;}lw.hidden=true;const n=+(libCur.tag[0].match(/\d+/)||[0])[0];await copyText(document.getElementById('lphone').dataset.txt,document.getElementById('lok'));if(n>1)addSaved(n-1);};
+document.getElementById('lgo').onclick=()=>{showTab('t-macros');const i=MACROS.findIndex(m=>m.id===libCur.go);if(i>=0)chips.children[i].click();};
+libList();libRender();
+
+renderFields();
+setTimeout(()=>{getOcr().catch(()=>{});},1200);
+
+/* Revisor */
+const WAIT=/^(un momento|un momentito|estoy revisando|perm[ií]t[ae]me|aguarde|en breve|validando|verificando|d[eé]jame (revisar|validar|verificar)|espere|ya te (ayudo|confirmo))\b[^]{0,60}$/i;
+const GREET=/^(hola|buen(os|as)? (d[ií]as|tardes|noches)|buenas)[!.,\s👋😊]*$/i;
+const ASK=/^¿?\s*(algo m[aá]s|todo conforme|te puedo ayudar en algo m[aá]s|en qu[eé] m[aá]s te (puedo )?ayudar)\s*\??$/i;
+const BYE=/^(gracias por (escribir|comunicarte|contactar)[^]*|que tengas (un )?buen (d[ií]a|viaje)[^]*|saludos[^]*)$/i;
+const EX='Hola\nUn momento, por favor\nEstoy revisando tu servicio\nTu conductor Luis ya está en camino\nLlega en 8 minutos, placa ABC-123\n¿Algo más?\nGracias por escribir a Taxi Directo';
+const rin=document.getElementById('rin');
+function review(){const lines=rin.value.split('\n').map(s=>s.trim()).filter(Boolean);const adj=document.getElementById('radj').checked;
+ const flags=[];const keep=[];let greet='',ask=false,bye=false;
+ lines.forEach(l=>{if(WAIT.test(l)){flags.push(['bad','Quitar',`"${l}" es solo espera: no informa nada al cliente.`]);return;}
+  if(GREET.test(l)){greet=l.replace(/[.!]+$/,'');flags.push(['warn','Unir',`"${l}" va al inicio del mensaje, no sola.`]);return;}
+  if(ASK.test(l)){ask=true;flags.push(['warn','Unir',`"${l}" va al final del mensaje, no sola.`]);return;}
+  if(BYE.test(l)){bye=true;flags.push(['warn','Unir',`La despedida va en el mismo mensaje.`]);return;}
+  keep.push(l.replace(/\s+$/,''));});
+ if(adj)flags.push(['warn','Archivo','Escribe este texto como descripción de la imagen o PDF: así cuenta como 1 mensaje, no 2.']);
+ let out=(greet?greet+', ':'')+keep.map(s=>/[.!?…:)]$/.test(s)?s:s+'.').join(' ');
+ if(greet&&keep.length) out=greet+', '+keep.map(s=>/[.!?…:)]$/.test(s)?s:s+'.').join(' ').replace(/^./,c=>c.toLowerCase());
+ if(ask||bye) out+=(out?'\n\n':'')+'Si necesitas algo más, escríbenos por aquí.\n'+CIERRE;
+ const n=lines.length+(adj?1:0), after=out?1:0;
+ if(n>1&&!flags.length) flags.push(['warn','Unir',`${lines.length} burbujas con información: se pueden enviar juntas.`]);
+ if(n<=1) flags.push(['good','Bien','Ya es un solo envío.']);
+ document.getElementById('rflags').innerHTML=flags.map(([c,b,t])=>`<div class="flag ${c}"><b>${b}</b><span>${t.replace(/</g,'&lt;')}</span></div>`).join('');
+ const ph=document.getElementById('rphone');ph.innerHTML='';
+ if(out){const b=document.createElement('div');b.className='bubble';b.innerHTML=wa((adj?'📎 [archivo]\n':'')+out);const t=document.createElement('span');t.className='t';t.textContent=hhmm()+' ✓✓';b.appendChild(t);ph.appendChild(b);}
+ ph.dataset.txt=out; ph.dataset.sav=Math.max(0,n-after);
+ document.getElementById('rhint').textContent=n?`Antes: ${n} mensaje${n>1?'s':''} · Ahora: ${after} · ahorro USD ${((n-after)*TARIFA).toFixed(3)} por chat. Revisa el texto antes de copiarlo.`:'Escribe o pega tus mensajes a la izquierda.';}
+rin.addEventListener('input',review);document.getElementById('radj').addEventListener('change',review);
+document.getElementById('rex').onclick=()=>{rin.value=EX;review();};
+document.getElementById('rcopy').onclick=async()=>{const ph=document.getElementById('rphone');if(!ph.dataset.txt)return;await copyText(ph.dataset.txt,document.getElementById('rok'));addSaved(+ph.dataset.sav||0);};
+rin.value=EX;review();
+
+</script>
+</body>
+</html>
