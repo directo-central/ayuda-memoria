@@ -352,7 +352,7 @@ function buildReserva(t){
 }
 function parseRes(t){t=t||'';const r={};const g=re=>{const m=t.match(re);return m?m[1].trim():'';};
  r.codigo=g(/C[oó]digo\s*(?:de\s*)?Servicio\s*:?\s*(\d{7})/i)||g(/(?<!\d)(\d{7})(?!\d)/);
- const pas=g(/Pasajero\s*:[ \t]*([^\n]+)/i)||g(/Usuario\s*:[ \t]*([^\n]+)/i);if(pas){const ws=pas.replace(/[^\p{L}\s'-]/gu,' ').trim().split(/\s+/);const w=ws.length>=3?ws[2]:ws.length===2?ws[1]:ws[0];if(w)r.nombre=titulo(w);}
+ const okN=x=>/\p{L}{2,}/u.test(x||'')?x:'';const pas=okN(g(/Pasajero\s*:[ \t]*([^\n]*)/i))||okN(g(/Usuario\s*:[ \t]*([^\n]*)/i));if(pas){const ws=pas.replace(/[^\p{L}\s'-]/gu,' ').trim().split(/\s+/);const w=ws.length>=3?ws[2]:ws.length===2?ws[1]:ws[0];if(w)r.nombre=titulo(w);}
  const fe=g(/Fecha de tu viaje\s*:\s*([^\n]+)/i);if(fe){const h=(fe.match(/(\d{1,2}:\d{2})/)||[])[1];let d=fe.replace(/\s*-?\s*\d{1,2}:\d{2}.*$/,'').trim().replace(/,\s*$/,'');d=d.charAt(0).toLowerCase()+d.slice(1);let hh='';if(h){let[H,M]=h.split(':').map(Number);const pm=H>=12;H=H%12||12;hh=`${H}:${String(M).padStart(2,'0')} ${pm?'p. m.':'a. m.'}`;}r.fecha=(d?d:'')+(hh?(d?', a las ':'las ')+hh:'');}
  const dm=fe&&fe.match(/(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+\d{1,2}\s+de\s+\p{L}+/iu);if(dm){const hm=(r.fecha||'').match(/a las (.+)$/);r.dia=dm[0].toLowerCase()+(hm?' a las '+hm[1]:'');}
  const cut=x=>x.split(',')[0].replace(/\s+-\s+[A-ZÁÉÍÓÚÑ ]+$/,'').trim();const de=g(/Desde\s*:\s*([^\n]+)/i),ha=g(/Hacia\s*(?:\(Destino\s*\d+\))?\s*:\s*([^\n]+)/i);if(de&&ha)r.ruta=`${cut(de)} → ${cut(ha)}`;
