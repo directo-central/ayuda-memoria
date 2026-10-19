@@ -134,6 +134,26 @@ td.name{font-weight:700;text-transform:capitalize}
 .ocrst.wait{color:var(--warn)} .ocrst.ok{color:var(--good)} .ocrst.err{color:var(--bad)}
 footer{color:var(--muted);font-size:13px;margin-top:28px}
 @media (prefers-reduced-motion:no-preference){.bubble{transition:opacity .2s}}
+.areahd{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}.areahd label{margin-bottom:4px}.clrarea{margin:0 0 4px;padding:4px 12px;font-size:13px}
+
+.wrap{max-width:1440px}
+.libhead{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:flex-end;justify-content:space-between}
+.libhead>div:first-child{flex:1 1 420px}.libhead .hint{margin-bottom:0}
+.libsearch{flex:0 1 360px;width:100%}
+.lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-top:6px}
+.lgrid .lgrp{grid-column:1/-1;margin:18px 0 0;padding-top:6px;border-top:1px solid var(--line)}
+.lgrid .lgrp:first-child{border-top:0;margin-top:8px}
+.lcard{display:flex;flex-direction:column;gap:8px;text-align:left;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:12px 14px;cursor:pointer;font:inherit;min-height:118px;transition:border-color .15s,box-shadow .15s}
+.lcard:hover,.lcard:focus-visible{border-color:var(--amber);box-shadow:0 2px 10px rgba(0,0,0,.08);outline:none}
+.lcard[aria-pressed="true"]{border-color:var(--amber);background:var(--amber-soft)}
+.lcard .lct{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;font-weight:700;font-size:15px;line-height:1.25}
+.lcard .pill{flex:none;font-size:11px}
+.lcard .lsn{font-size:13px;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.lshade{position:fixed;inset:0;background:rgba(10,15,25,.35);z-index:40}
+.ldrawer{position:fixed;top:0;right:0;bottom:0;width:min(600px,100%);background:var(--surface);border-left:1px solid var(--line);box-shadow:-8px 0 30px rgba(0,0,0,.18);z-index:41;overflow:auto;padding:20px 22px 28px}
+.ldhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.ldhead h2{margin:0}
+.lclose{flex:none;border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;width:36px;height:36px;font-size:16px;cursor:pointer}
+.lclose:hover{border-color:var(--ink)}
 </style>
 </head>
 <body>
@@ -190,29 +210,30 @@ footer{color:var(--muted);font-size:13px;margin-top:28px}
 
 <!-- TEXTOS DEL EQUIPO -->
 <section id="p-lib" role="tabpanel" aria-labelledby="t-lib" hidden>
-  <div class="grid">
-    <div class="panel">
-      <h2>Textos del equipo, revisados</h2>
-      <p class="hint">Los textos que usan hoy los agentes, corregidos: un solo trato (tú), sin burbujas de espera, la información clave en negrita y una pregunta clara al final.</p>
-      <label for="lq">Buscar texto</label>
-      <input id="lq" placeholder="Ej.: factura, prepago, Backus" autocomplete="off">
-      <div class="llist" id="llist"></div>
+  <div class="panel">
+    <div class="libhead">
+      <div><h2>Textos del equipo, revisados</h2>
+      <p class="hint">Los textos que usan hoy los agentes, corregidos: un solo trato (tú), sin burbujas de espera, la información clave en negrita y una pregunta clara al final. Toca una tarjeta para completar y copiar.</p></div>
+      <div class="libsearch"><label for="lq">Buscar texto</label>
+      <input id="lq" placeholder="Ej.: factura, prepago, Backus" autocomplete="off"></div>
     </div>
-    <div class="panel">
-      <h2 id="ltitle"></h2>
-      <p class="hint" id="lnote"></p>
-      <div class="fields" id="lfields"></div>
-      <label class="lchk" hidden><input type="checkbox" id="lend" checked> Agregar despedida al final</label>
-      <div class="phone" id="lphone" style="margin-top:12px"></div>
-      <div class="row">
-        <button class="btn" id="lcopy">Copiar mensaje</button>
-        <button class="btn alt" id="lgo" hidden>Ir al macro</button>
-        <span class="ok" id="lok" hidden>Copiado</span>
-        <span class="mwarn" id="lwarn" role="alert" hidden></span>
-      </div>
-      <details class="lantes"><summary>Ver texto anterior</summary><p id="lantes"></p></details>
-    </div>
+    <div class="lgrid" id="llist"></div>
   </div>
+  <div class="lshade" id="lshade" hidden></div>
+  <aside class="ldrawer" id="ldrawer" hidden aria-labelledby="ltitle" role="dialog">
+    <div class="ldhead"><h2 id="ltitle"></h2><button type="button" class="lclose" id="lclose" aria-label="Cerrar">✕</button></div>
+    <p class="hint" id="lnote"></p>
+    <div class="fields" id="lfields"></div>
+    <label class="lchk" hidden><input type="checkbox" id="lend" checked> Agregar despedida al final</label>
+    <div class="phone" id="lphone" style="margin-top:12px"></div>
+    <div class="row">
+      <button class="btn" id="lcopy">Copiar mensaje</button>
+      <button class="btn alt" id="lgo" hidden>Ir al macro</button>
+      <span class="ok" id="lok" hidden>Copiado</span>
+      <span class="mwarn" id="lwarn" role="alert" hidden></span>
+    </div>
+    <details class="lantes"><summary>Ver texto anterior</summary><p id="lantes"></p></details>
+  </aside>
 </section>
 
 <!-- REVISOR -->
@@ -387,7 +408,7 @@ function renderFields(){const box=document.getElementById('fields');const TK=doc
   el.oninput=()=>{vals[cur.id][k]=el.value;if(k==='min')vals[cur.id]._mt=1;if(k==='raw'&&cur.onRaw){const p=cur.onRaw(el.value);Object.entries(p).forEach(([kk,vv])=>{const inp=document.getElementById('f-'+cur.id+'-'+kk);if(inp){inp.value=vv||'';vals[cur.id][kk]=vv||'';}});}renderMsg();};
   if(cur.full&&cur.full.includes(k))w.className='full';
   if(cur.hi&&cur.hi.includes(k)){w.className='must';if(k==='min')el.inputMode='numeric';}
-  w.innerHTML=`<label for="${id}">${lab}</label>`;w.appendChild(el);if(opts==='min'){const h=document.createElement('small');h.id='minhint';el.setAttribute('aria-describedby','minhint');w.appendChild(h);}box.appendChild(w);});
+  if(opts==='area'){const hd=document.createElement('div');hd.className='areahd';hd.innerHTML=`<label for="${id}">${lab}</label>`;const cb=document.createElement('button');cb.type='button';cb.className='clr clrarea';cb.textContent='🧹 Limpiar';cb.title='Borra el resumen y los datos de este mensaje para pegar un servicio nuevo';cb.onclick=()=>{vals[cur.id]={};renderFields();const t=document.getElementById(id);if(t)t.focus();};hd.appendChild(cb);w.appendChild(hd);}else w.innerHTML=`<label for="${id}">${lab}</label>`;w.appendChild(el);if(opts==='min'){const h=document.createElement('small');h.id='minhint';el.setAttribute('aria-describedby','minhint');w.appendChild(h);}box.appendChild(w);});
  renderMsg();}
 function renderMsg(){const v={};cur.f.forEach(([k,,ph,opts])=>{const x=vals[cur.id][k];v[k]=(x&&x.trim())?x.trim():(Array.isArray(opts)?(x||opts[0]):(ph||''));});
  const txt=cur.b(v);const ph=document.getElementById('mphone');ph.innerHTML='';cur._err=cur.check?cur.check(v):null;document.getElementById('mwarn').hidden=true;
@@ -679,9 +700,15 @@ const LIB=[
   antes:'Estimados conductores, 👋\nOfrecemos nuestras disculpas por los inconvenientes presentados con el canal de atención de WhatsApp +51 934 345 456.\nDebido a reportes de spam realizados por algunos usuarios, el canal fue bloqueado temporalmente, lo que impidió visualizar y responder los mensajes pendientes.\n📲 Para garantizar la continuidad de la atención, hemos habilitado un canal de respaldo:\n👉 +51 934 345 456\nLes pedimos que toda consulta o incidencia no resuelta sea enviada a este nuevo número, donde recibirán el soporte correspondiente.\n⚡ Recuerden que la atención más ágil y directa es siempre vía WhatsApp.\nAgradecemos su comprensión y apoyo mientras trabajamos para restablecer el canal principal. 🙏'},
 ];
 let libCur=LIB[0];const libVals={};
+function libSnippet(x){try{const v={};x.f.forEach(([k,lab,ph,opts])=>{v[k]=opts?opts[0]:(ph||('['+lab.replace(/\s*\(.*?\)\s*/g,' ').trim().toLowerCase()+']'));});return x.b(v).replace(/\*/g,'').replace(/\n+/g,' ').trim();}catch(e){return '';}}
+function libOpen(){document.getElementById('ldrawer').hidden=false;document.getElementById('lshade').hidden=false;document.getElementById('lclose').focus();}
+function libClose(){document.getElementById('ldrawer').hidden=true;document.getElementById('lshade').hidden=true;const c=document.querySelector('.lcard[aria-pressed="true"]');if(c)c.focus();}
 function libList(){const q=(document.getElementById('lq').value||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');const box=document.getElementById('llist');box.innerHTML='';let last='';
  LIB.filter(x=>!q||(x.t+' '+x.g+' '+x.antes).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').includes(q)).forEach(x=>{if(x.g!==last){const h=document.createElement('p');h.className='lgrp';h.textContent=x.g;box.appendChild(h);last=x.g;}
-  const b=document.createElement('button');b.type='button';b.className='litem';b.setAttribute('aria-pressed',x===libCur);b.innerHTML=`<span>${x.t}</span><span class="pill ${x.tag[1]}">${x.tag[0]}</span>`;b.onclick=()=>{libCur=x;libList();libRender();};box.appendChild(b);});
+  const b=document.createElement('button');b.type='button';b.className='lcard';b.setAttribute('aria-pressed',x===libCur&&!document.getElementById('ldrawer').hidden);
+  const sn=x.go?'Usa el macro en "Macros de un envío".':libSnippet(x);
+  b.innerHTML=`<span class="lct"><span>${x.t}</span><span class="pill ${x.tag[1]}">${x.tag[0]}</span></span><span class="lsn"></span>`;b.querySelector('.lsn').textContent=sn;
+  b.onclick=()=>{libCur=x;libRender();libOpen();libList();};box.appendChild(b);});
  if(!box.children.length)box.innerHTML='<p class="hint">Sin resultados.</p>';}
 function libRender(){const x=libCur;document.getElementById('lwarn').hidden=true;libVals[x.id]=libVals[x.id]||{};const V=libVals[x.id];
  document.getElementById('ltitle').textContent=x.t;document.getElementById('lnote').textContent=x.note||'';
@@ -700,7 +727,8 @@ function libMsg(){const x=libCur,V=libVals[x.id];const v={};x.f.forEach(([k,lab,
 document.getElementById('lq').oninput=libList;
 document.getElementById('lend').onchange=e=>{libVals[libCur.id]._end=e.target.checked;libMsg();};
 document.getElementById('lcopy').onclick=async()=>{const tx=document.getElementById('lphone').dataset.txt||'';const miss=[...new Set((tx.match(/\[[^\]\n]{2,40}\]/g)||[]))];const lw=document.getElementById('lwarn');if(miss.length){lw.textContent='No se copió. Completa: '+miss.join(', ').replace(/[\[\]]/g,'');lw.hidden=false;return;}lw.hidden=true;const n=+(libCur.tag[0].match(/\d+/)||[0])[0];await copyText(document.getElementById('lphone').dataset.txt,document.getElementById('lok'));if(n>1)addSaved(n-1);};
-document.getElementById('lgo').onclick=()=>{showTab('t-macros');const i=MACROS.findIndex(m=>m.id===libCur.go);if(i>=0)chips.children[i].click();};
+document.getElementById('lclose').onclick=libClose;document.getElementById('lshade').onclick=libClose;document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.getElementById('ldrawer').hidden)libClose();});
+document.getElementById('lgo').onclick=()=>{libClose();showTab('t-macros');const i=MACROS.findIndex(m=>m.id===libCur.go);if(i>=0)chips.children[i].click();};
 libList();libRender();
 
 renderFields();
