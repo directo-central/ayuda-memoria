@@ -292,6 +292,7 @@ try{const s=localStorage.getItem('mesa-tab');if(s&&document.getElementById(s))sh
 /* Macros */
 const CIERRE='¡Gracias por contactar al Centro de Soporte Directo! 🚘💙';
 const LINK='https://portal.directoapp.pe/intranet/compartir-servicio/';
+const VIDEO_AERO='https://goo.su/LRwpiCy';
 const SAMPLE_RES=`Codigo Servicio: 5900001
 Fecha de tu viaje: Hoy, lunes 12 de octubre - 08:15 (mañana)
 Desde: AV. EJEMPLO 123 - MIRAFLORES
@@ -324,7 +325,11 @@ function buildReserva(t){
   const cod=(t.match(/C[oó]digo\s*(?:de\s*)?Servicio\s*:\s*(\d+)/i)||[])[1];
   if(!cod) return 'No encontré el "Codigo Servicio". Pega el resumen completo que arma el sistema.';
   // Mantiene la estructura del resumen del sistema; quita lo que ya arma la herramienta.
-  const skip=/^(✅|🔗|https?:\/\/|Si alg[uú]n dato|¡?Gracias por contactar)/i;
+  const skip=/^(✅|🔗|https?:\/\/|Si alg[uú]n dato|¡?Gracias por contactar|¿?\s*D[OÓ]NDE ENCONTRAR|Mira el video|Recuerda que no existen cobros|✈️)/i;
+  // Origen aeropuerto: el pasajero va al módulo de Directo para que le asignen conductor.
+  const desde=(t.match(/^\s*Desde\s*:\s*([^\n]*)/im)||[])[1]||'';
+  const aero=/AEROPUERTO/i.test(desde);
+  const video=(t.match(/video[^\n]*?(https?:\/\/\S+)/i)||[])[1]||VIDEO_AERO;
   const L=t.split('\n').map(x=>x.trim()).filter(x=>x&&!skip.test(x));
   const G={cod:[],fecha:[],ruta:[],tipo:[],otros:[],tarifa:[]};
   L.forEach(x=>{
@@ -345,9 +350,16 @@ function buildReserva(t){
   if(G.otros.length===1&&/^Otros datos/i.test(G.otros[0]))G.otros=[];
   if(G.otros.length&&/^Otros datos/i.test(G.otros[0]))G.otros[0]='*Otros datos de tu viaje*';
   const B=['✅ *Reserva confirmada*'];
-  [G.cod,G.fecha,G.ruta,G.tipo,G.otros,G.tarifa].forEach(g=>{if(g.length)B.push(g.join('\n'));});
-  B.push(`🔗 *Sigue tu servicio aquí* 30 min antes de tu reserva:\n${LINK}${cod}`);
-  B.push(`Si algún dato no es correcto, responde este mensaje.\n${CIERRE}`);
+  // Orden pedido: código, fecha y ruta juntos; luego tipo, otros datos y tarifa.
+  const top=[...G.cod,...G.fecha,...G.ruta]; if(top.length)B.push(top.join('\n'));
+  [G.tipo,G.otros,G.tarifa].forEach(g=>{if(g.length)B.push(g.join('\n'));});
+  if(aero){
+    B.push('Recuerda que no existen cobros extra por tiempos de espera y que la tarifa puede variar según el horario donde realices el viaje.');
+    B.push(`✈️ Al llegar, acércate al *módulo de Directo* e indica tu código de servicio *${cod}* para asignarte tu conductor.`);
+    B.push(`🎥 Mira cómo llegar al módulo:\n${video}`);
+  } else B.push(`🔗 *Sigue tu servicio aquí* 30 min antes de tu reserva:\n${LINK}${cod}`);
+  B.push('Si algún dato no es correcto, responde este mensaje.');
+  B.push(CIERRE);
   return B.join('\n\n');
 }
 function parseRes(t){t=t||'';const r={};const g=re=>{const m=t.match(re);return m?m[1].trim():'';};
@@ -360,7 +372,7 @@ function parseRes(t){t=t||'';const r={};const g=re=>{const m=t.match(re);return 
 function minErr(m){m=(m||'').trim();if(!m)return 'Escribe los minutos que muestra el tracking.';if(!/^\d{1,3}$/.test(m))return 'Solo números enteros, por ejemplo 8.';if(+m>90)return 'Revisa el tiempo: más de 90 minutos.';return null;}
 function minLine(m){m=(m||'').trim();if(minErr(m))return '⏱️ Llega en aprox. [escribe los minutos]';const n=+m;return n===0?'⏱️ Tu conductor ya está llegando a tu punto de recojo':`⏱️ Llega en aprox. *${n} ${n===1?'minuto':'minutos'}*`;}
 const MACROS=[
- {id:'reserva',t:'Confirmar reserva',s:'Pega el resumen del sistema',before:4,note:'Copia el resumen que arma el sistema y pégalo tal cual: el mensaje mantiene la estructura del resumen y agrega el link de seguimiento con el código. Incluye el teléfono del pasajero.',f:[['resumen','Resumen del servicio (pegar)',SAMPLE_RES,'area']],
+ {id:'reserva',t:'Confirmar reserva',s:'Pega el resumen del sistema',before:4,note:'Copia el resumen que arma el sistema y pégalo tal cual: el mensaje mantiene la estructura del resumen y agrega el link de seguimiento con el código. Incluye el teléfono del pasajero. Si el origen es el aeropuerto, agrega cómo llegar al módulo de Directo con el video.',f:[['resumen','Resumen del servicio (pegar)',SAMPLE_RES,'area']],
   b:v=>buildReserva(v.resumen)},
  {id:'conductor',t:'Datos del conductor',s:'Pega la captura del módulo',before:2,ocr:true,note:'Pega la captura del módulo de reserva y la herramienta llena las casillas. También puedes pegar la captura del tracking (con la barra del link visible): llena el N.º de servicio, nombre, vehículo, placa, color y minutos.',onRaw:t=>parseCond(t),f:[['raw','O pega / escribe los datos en texto','5900001 1234 Juan Pérez Ríos ABC123 Blanco','area'],['codigo','N.º de servicio · automático',''],['movil','Conductor (móvil) · automático',''],['nombre','Nombre · automático',''],['placa','Placa · automático',''],['color','Color · automático',''],['vehiculo','Vehículo · automático (tracking)',''],['estado','Estado del conductor','asignado',['asignado','en camino','ya llegó al punto de recojo']],['min','⏱️ Llega en (min) · del tracking o a mano','','min']],check:v=>{const c=vals.conductor||{};if(!(c.placa||'').trim()&&!(c.nombre||'').trim())return 'Faltan los datos del conductor: pega la captura del módulo o del tracking.';return v.estado==='ya llegó al punto de recojo'?null:minErr(v.min);},
   b:v=>{const p=parseCond((vals.conductor&&vals.conductor.raw)||'');const g=k=>(vals.conductor&&vals.conductor[k]&&vals.conductor[k].trim())||p[k]||'';const est=v.estado||'asignado';const L=[est==='en camino'?'Hola 👋 Tu conductor ya está en camino:':est==='asignado'?'Hola 👋 Tu conductor ya está asignado:':'Hola 👋 Tu conductor ya llegó a tu punto de recojo:'];const d=[];if(g('nombre'))d.push(`🧑‍✈️ Conductor: ${g('nombre')}`);if(g('movil'))d.push(`🚖 Móvil: ${g('movil')}`);if(g('vehiculo'))d.push(`🚘 Vehículo: ${g('vehiculo')}`);if(g('placa'))d.push(`🚗 Placa: *${g('placa')}*`+(g('color')?` · Color: *${g('color')}*`:''));if(est!=='ya llegó al punto de recojo')d.push(minLine(v.min));if(d.length)L.push(d.join('\n'));if(g('codigo'))L.push(`🔗 Ubicación en tiempo real:\n${LINK}${g('codigo')}`);L.push(CIERRE);return L.join('\n\n');}},
