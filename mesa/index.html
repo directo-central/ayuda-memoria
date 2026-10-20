@@ -325,7 +325,7 @@ function buildReserva(t){
   const cod=(t.match(/C[oó]digo\s*(?:de\s*)?Servicio\s*:\s*(\d+)/i)||[])[1];
   if(!cod) return 'No encontré el "Codigo Servicio". Pega el resumen completo que arma el sistema.';
   // Mantiene la estructura del resumen del sistema; quita lo que ya arma la herramienta.
-  const skip=/^(✅|🔗|https?:\/\/|Si alg[uú]n dato|¡?Gracias por contactar|¿?\s*D[OÓ]NDE ENCONTRAR|Mira el video|Recuerda que no existen cobros|✈️)/i;
+  const skip=/^(✅|🔗|https?:\/\/|Si alg[uú]n dato|¿?Hay alg[uú]n dato|ℹ️|🎥|Acércate al módulo|¡?Gracias por contactar|¿?\s*D[OÓ]NDE ENCONTRAR|Mira el video|Recuerda que no existen cobros|✈️)/i;
   // Origen aeropuerto: el pasajero va al módulo de Directo para que le asignen conductor.
   const desde=(t.match(/^\s*Desde\s*:\s*([^\n]*)/im)||[])[1]||'';
   const aero=/AEROPUERTO/i.test(desde);
@@ -343,10 +343,13 @@ function buildReserva(t){
   // UX: valores clave en negrita, sin líneas vacías ni repetidas, sin ", PERÚ".
   const val=x=>{const i=x.indexOf(':');return i<0?'':x.slice(i+1).trim();};
   const bold=x=>{const i=x.indexOf(':');return i<0||!x.slice(i+1).trim()?x:`${x.slice(0,i+1)} *${x.slice(i+1).trim()}*`;};
-  G.cod=G.cod.map(bold); G.fecha=G.fecha.map(bold); G.tarifa=G.tarifa.map(bold);
-  G.ruta=G.ruta.map(x=>x.replace(/,\s*PER[UÚ](?=\s|,|$)/gi,'').replace(/^Desde\s*:\s*/i,'📍 Desde: ').replace(/^Hacia\s*\(\s*Destino\s*(\d+)\s*\)\s*:\s*/i,'🏁 Destino $1: ').replace(/^Hacia\s*:\s*/i,'🏁 Destino: '));
+  G.cod=G.cod.map(bold); G.tarifa=G.tarifa.map(bold);
+  G.fecha=G.fecha.map(x=>{const v=val(x);return v?`Fecha de tu viaje: *${v.charAt(0).toUpperCase()+v.slice(1)}*`:x;});
+  G.ruta=G.ruta.map(x=>x.replace(/^Desde\s*:\s*/i,'📍 *Desde*: ').replace(/^Hacia\s*\(\s*Destino\s*(\d+)\s*\)\s*:\s*/i,'🏁 *Hacia* (Destino $1): ').replace(/^Hacia\s*:\s*/i,'🏁 *Hacia*: '));
   const usu=val(G.otros.find(x=>/^Usuario\b/i.test(x))||''), pas=val(G.otros.find(x=>/^Pasajero\b/i.test(x))||'');
   G.otros=G.otros.filter(x=>!(/:/.test(x)&&!val(x)&&!/^Otros datos/i.test(x))).filter(x=>!(usu&&pas&&usu===pas&&/^Usuario\b/i.test(x)));
+  // Nombres escritos todo en minúscula pasan a Mayúscula Inicial (mauricio lozada → Mauricio Lozada).
+  G.otros=G.otros.map(x=>{const m=x.match(/^(Usuario|Pasajero)\s*:\s*(.+)$/i);return m&&m[2]===m[2].toLowerCase()?`${m[1]}: ${titulo(m[2])}`:x;});
   if(G.otros.length===1&&/^Otros datos/i.test(G.otros[0]))G.otros=[];
   if(G.otros.length&&/^Otros datos/i.test(G.otros[0]))G.otros[0]='*Otros datos de tu viaje*';
   const B=['✅ *Reserva confirmada*'];
@@ -354,11 +357,11 @@ function buildReserva(t){
   const top=[...G.cod,...G.fecha,...G.ruta]; if(top.length)B.push(top.join('\n'));
   [G.tipo,G.otros,G.tarifa].forEach(g=>{if(g.length)B.push(g.join('\n'));});
   if(aero){
-    B.push('Recuerda que no existen cobros extra por tiempos de espera y que la tarifa puede variar según el horario donde realices el viaje.');
-    B.push(`✈️ Al llegar, acércate al *módulo de Directo* e indica tu código de servicio *${cod}* para asignarte tu conductor.`);
-    B.push(`🎥 Mira cómo llegar al módulo:\n${video}`);
+    B.push('✈️ *Al llegar al aeropuerto:*\nAcércate al módulo de Directo e indica tu código de servicio para que te asignemos un conductor.');
+    B.push(`🎥 *¿Cómo llegar al módulo?*\n${video}`);
+    B.push('ℹ️ No se cobran extras por tiempo de espera. La tarifa puede variar según el horario del viaje.');
   } else B.push(`🔗 *Sigue tu servicio aquí* 30 min antes de tu reserva:\n${LINK}${cod}`);
-  B.push('Si algún dato no es correcto, responde este mensaje.');
+  B.push('¿Hay algún dato incorrecto? Responde a este mensaje.');
   B.push(CIERRE);
   return B.join('\n\n');
 }
